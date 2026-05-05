@@ -1,0 +1,33 @@
+## Interface: 120000, 120001
+## Title: Cadence
+## Notes: Player activity and engagement meter for Mythic+, raids, and dungeons. See who's actually playing.
+## Author: Cadence Team
+## Version: 1.0.0
+## SavedVariables: CadenceDB
+## IconTexture: Interface\Icons\Spell_Holy_BorrowedTime
+## DefaultState: enabled
+## X-Category: Combat
+## X-Website: https://github.com/cadence-addon
+
+Utils.lua
+SpellDB.lua
+Core.lua
+Tracker.lua
+Scoring.lua
+MeterData.lua
+Polling.lua
+Segments.lua
+Events.lua
+QREncode.lua
+RewardTiers.lua
+RewardsDB.lua
+ScoresDB.lua
+UI_Meter.lua
+UI_Tooltip.lua
+UI_RewardTooltip.lua
+UI_PlayerCard.lua
+UI_QR.lua
+UI_Summary.lua
+UI_LFGOverlay.lua
+UI_BRezAdvisor.lua
+Options.lua

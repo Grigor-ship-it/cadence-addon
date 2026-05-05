@@ -1,0 +1,13 @@
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Local dev helpers — keep out of CurseForge zip
+sync-to-wow.ps1
+
+# Build/release artifacts
+.release/
+*.zip
