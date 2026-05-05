@@ -2,6 +2,18 @@
     Cadence - QREncode.lua
     QR Code encoder for WoW addon use.
 
+    Cadence modifications (c) 2025-2026 Grigor / Cadence:
+      * Vendored into the Cadence addon namespace (PC.QREncode / CadenceQR).
+      * Replaced any bitwise dependencies with a portable 256x256 XOR lookup
+        table built at load time, so the encoder runs unmodified on every
+        Lua version shipped with the WoW client.
+      * Trimmed unused public helpers and adapted the API surface for
+        in-game use (no file I/O, no external dependencies).
+      * Cosmetic and structural cleanups around the integration points.
+    Cadence modifications are licensed to end users under the same
+    3-clause BSD terms as the upstream encoder, reproduced below.
+
+    ─── Upstream notice (required, do not remove) ───────────────────────
     Based on luaqrcode by Patrick Gundlach (speedata/luaqrcode).
     Licensed under the 3-clause BSD license.
 

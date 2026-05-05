@@ -15,7 +15,9 @@ local Utils = PC.Utils
 ---------------------------------------------------------------------------
 -- Configuration
 ---------------------------------------------------------------------------
-local SUBMIT_BASE_URL = "http://192.168.2.20:3000/s"  -- dev URL (change to https://cadence.gg/s for production)
+-- Production submission endpoint. Players can override at runtime with
+-- `/cadence url <full-url>` (handy for self-hosted testing).
+local SUBMIT_BASE_URL = "https://api.cadence.gg/s"
 local MAX_QR_PIXELS = 400   -- target max pixel size for QR code area
 local QUIET_ZONE = 2        -- modules of white border around QR code
 local FONT_FILE = "Fonts\\FRIZQT__.TTF"
