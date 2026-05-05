@@ -41,7 +41,7 @@ end
 ---------------------------------------------------------------------------
 local FONT = "Fonts\\FRIZQT__.TTF"
 
--- ── Premium color palette (matches cadence.gg tokens) ─────
+-- ── Premium color palette (matches cadencewow.com tokens) ─────
 local C_VOID          = { 0.035, 0.035, 0.059 }
 local C_OBSIDIAN      = { 0.067, 0.067, 0.094 }
 local C_SLATE         = { 0.098, 0.098, 0.133 }

@@ -17,7 +17,7 @@ local Utils = PC.Utils
 ---------------------------------------------------------------------------
 -- Production submission endpoint. Players can override at runtime with
 -- `/cadence url <full-url>` (handy for self-hosted testing).
-local SUBMIT_BASE_URL = "https://api.cadence.gg/s"
+local SUBMIT_BASE_URL = "https://api.cadencewow.com/s"
 local MAX_QR_PIXELS = 400   -- target max pixel size for QR code area
 local QUIET_ZONE = 2        -- modules of white border around QR code
 local FONT_FILE = "Fonts\\FRIZQT__.TTF"
@@ -378,7 +378,7 @@ end
 ---------------------------------------------------------------------------
 -- Create the QR share popup frame
 ---------------------------------------------------------------------------
--- ── Premium color palette (matches cadence.gg tokens) ─────
+-- ── Premium color palette (matches cadencewow.com tokens) ─────
 local C_VOID          = { 0.035, 0.035, 0.059, 0.98 }
 local C_OBSIDIAN      = { 0.067, 0.067, 0.094, 0.95 }
 local C_GOLD_BRIGHT   = { 1.00, 0.84, 0.40 }
@@ -487,7 +487,7 @@ local function CreateQRFrame()
     f.infoText:SetWidth(350)
     f.infoText:SetJustifyH("CENTER")
     f.infoText:SetTextColor(C_TEXT_MUTED[1], C_TEXT_MUTED[2], C_TEXT_MUTED[3])
-    f.infoText:SetText("Scan with your phone camera to upload\nto |cffFFD666cadence.gg|r")
+    f.infoText:SetText("Scan with your phone camera to upload\nto |cffFFD666cadencewow.com|r")
 
     -- Encounter summary (gold accented)
     f.encounterText = f:CreateFontString(nil, "OVERLAY")

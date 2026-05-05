@@ -325,7 +325,7 @@ local function RenderData(f, name, realm, data)
     table.insert(lines, FmtRow("Encounters analyzed", tostring(totalRuns)))
     table.insert(lines, "")
     table.insert(lines, C_DIM .. "Full breakdown — per role, history, badges,|r")
-    table.insert(lines, C_DIM .. "and detailed scoring — at " .. C_BRAND .. "cadence.gg|r")
+    table.insert(lines, C_DIM .. "and detailed scoring — at " .. C_BRAND .. "cadencewow.com|r")
     f.body:SetText(table.concat(lines, "\n"))
 
     -- ── Footer ───────────────────────────────────────────────

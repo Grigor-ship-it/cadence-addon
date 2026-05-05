@@ -1,7 +1,7 @@
 --[[
     Cadence - UI_Summary.lua
     End-of-encounter / M+ summary window.
-    Premium post-encounter report — matches the Cadence.gg website aesthetic.
+    Premium post-encounter report — matches the cadencewow.com website aesthetic.
     Dark obsidian surfaces, gold accents, modern typographic hierarchy.
 ]]
 
@@ -20,7 +20,7 @@ local Utils = PC.Utils
 local FONT_FILE        = "Fonts\\FRIZQT__.TTF"
 local FONT_FILE_HEADER = "Fonts\\MORPHEUS.TTF"
 
--- ── Premium color palette (matches cadence.gg tokens) ─────
+-- ── Premium color palette (matches cadencewow.com tokens) ─────
 local C_VOID           = { 0.035, 0.035, 0.059, 0.98 }      -- #09090f
 local C_OBSIDIAN       = { 0.067, 0.067, 0.094, 0.95 }      -- #111118
 local C_SLATE          = { 0.098, 0.098, 0.133, 0.90 }      -- #191922
@@ -381,7 +381,7 @@ local function CreateSummaryFrame()
         self:SetBackdropColor(C_GOLD_DIM[1], C_GOLD_DIM[2], C_GOLD_DIM[3], 0.60)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText("|cffFFD666Share QR Code|r")
-        GameTooltip:AddLine("Generate a scannable QR code to\nupload this encounter to Cadence.gg", 0.72, 0.72, 0.80, true)
+        GameTooltip:AddLine("Generate a scannable QR code to\nupload this encounter to cadencewow.com", 0.72, 0.72, 0.80, true)
         GameTooltip:Show()
     end)
     f.shareBtn:SetScript("OnLeave", function(self)

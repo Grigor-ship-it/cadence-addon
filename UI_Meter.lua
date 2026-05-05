@@ -1,7 +1,7 @@
 --[[
     Cadence - UI_Meter.lua
     Main meter window: bars, sorting, periodic updates.
-    Premium dark theme matching Cadence.gg website aesthetic.
+    Premium dark theme matching cadencewow.com website aesthetic.
 ]]
 
 local ADDON_NAME, PC = ...
@@ -28,7 +28,7 @@ local BACKDROP_INFO = {
 local TITLE_HEIGHT = 24
 local PADDING = 2
 
--- ── Premium color palette (matches cadence.gg tokens) ─────
+-- ── Premium color palette (matches cadencewow.com tokens) ─────
 local C_VOID           = { 0.035, 0.035, 0.059, 0.98 }
 local C_OBSIDIAN       = { 0.067, 0.067, 0.094, 0.95 }
 local C_SLATE          = { 0.098, 0.098, 0.133, 0.90 }
