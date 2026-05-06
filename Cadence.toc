@@ -7,7 +7,8 @@
 ## IconTexture: Interface\Icons\Spell_Holy_BorrowedTime
 ## DefaultState: enabled
 ## X-Category: Combat
-## X-Website: https://github.com/cadence-addon
+## X-Website: https://cadencewow.com
+## X-CurseForge-Project-ID: 1535831
 
 Utils.lua
 SpellDB.lua

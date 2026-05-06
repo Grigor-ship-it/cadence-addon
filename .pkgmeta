@@ -1,5 +1,6 @@
 ## pkgmeta for BigWigsMods/packager
 package-as: Cadence
+curse-id: 1535831
 
 ignore:
   - .github
