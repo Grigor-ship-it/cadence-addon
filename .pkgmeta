@@ -1,0 +1,10 @@
+## pkgmeta for BigWigsMods/packager
+package-as: Cadence
+
+ignore:
+  - .github
+  - .gitignore
+  - sync-to-wow.ps1
+  - LICENSE
+  - THIRD_PARTY_LICENSES.md
+  - README.md

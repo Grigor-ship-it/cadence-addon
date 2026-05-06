@@ -1,8 +1,8 @@
 ## Interface: 120000, 120001
 ## Title: Cadence
 ## Notes: Player activity and engagement meter for Mythic+, raids, and dungeons. See who's actually playing.
-## Author: Cadence Team
-## Version: 1.0.0
+## Author: Grigor
+## Version: @project-version@
 ## SavedVariables: CadenceDB
 ## IconTexture: Interface\Icons\Spell_Holy_BorrowedTime
 ## DefaultState: enabled
