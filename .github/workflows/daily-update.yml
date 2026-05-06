@@ -1,0 +1,52 @@
+name: Daily DB Update
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 6am UTC daily (after backend aggregation runs)
+  workflow_dispatch:       # allow manual trigger
+
+jobs:
+  update-db:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch latest Lua DB files from API
+        run: |
+          for region in us eu kr tw; do
+            suffix=$([ "$region" = "us" ] && echo "" || echo "_$region")
+            echo "Fetching RewardsDB${suffix}.lua..."
+            curl -sf "https://api.cadencewow.com/api/v1/rewards/export?region=$region" \
+              -o "RewardsDB${suffix}.lua" || echo "WARN: rewards $region failed"
+          done
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit updated DB files
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name  "cadence-bot"
+          git config user.email "bot@cadencewow.com"
+          git add RewardsDB*.lua ScoresDB*.lua
+          git commit -m "chore: daily DB update $(date -u +%Y-%m-%d)"
+
+      - name: Auto-tag new patch release
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          # Get latest tag, bump patch number
+          git fetch --tags
+          LATEST=$(git tag --sort=-v:refname | grep '^v' | head -1)
+          if [ -z "$LATEST" ]; then
+            NEW_TAG="v1.0.1"
+          else
+            IFS='.' read -r major minor patch <<< "${LATEST#v}"
+            NEW_TAG="v${major}.${minor}.$((patch + 1))"
+          fi
+          echo "Tagging $NEW_TAG"
+          git tag "$NEW_TAG"
+          git push origin main "$NEW_TAG"
