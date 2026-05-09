@@ -16,6 +16,6 @@ jobs:
 
       - name: Package and publish
         uses: BigWigsMods/packager@v2
-        with:
-          cf-token: ${{ secrets.CF_API_KEY }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
