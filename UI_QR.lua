@@ -131,9 +131,9 @@ function UIQR.EncodePayload(segment)
     elseif segType == "soloshuffle" then typeCode = "S"
     end
 
-    -- Realm name (normalized: strip payload delimiters only, preserve UTF-8)
+    -- Realm name (preserve spaces as hyphens; parser converts back)
     local realm = GetNormalizedRealmName() or "Unknown"
-    realm = utf8sub(realm:gsub("[|_.~:+ ]", ""), 20)
+    realm = utf8sub(realm:gsub("[|_.~:+]", ""):gsub("%s+", "-"), 24)
 
     -- Clean encounter name (strip payload delimiters, preserve UTF-8 accented chars)
     local name = segment.name or "Unknown"
@@ -168,7 +168,7 @@ function UIQR.EncodePayload(segment)
         -- Per-player realm: nil means same-realm as reporter; non-nil for cross-realm
         local pRealm = snap.realm
         if pRealm and pRealm ~= "" then
-            pRealm = utf8sub(pRealm:gsub("[|_.~:+]", ""), 20)
+            pRealm = utf8sub(pRealm:gsub("[|_.~:+]", ""):gsub("%s+", "-"), 24)
             pName = pName .. "~" .. pRealm
         end
         local classCode = CLASS_CODE[snap.class or "PRIEST"] or "PR"
