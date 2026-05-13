@@ -17,7 +17,7 @@ local Utils = PC.Utils
 ---------------------------------------------------------------------------
 -- Production submission endpoint. Players can override at runtime with
 -- `/cadence url <full-url>` (handy for self-hosted testing).
-local SUBMIT_BASE_URL = "https://api.cadencewow.com/s"
+local SUBMIT_BASE_URL = "https://www.cadencewow.com/s"
 local MAX_QR_PIXELS = 400   -- target max pixel size for QR code area
 local QUIET_ZONE = 2        -- modules of white border around QR code
 local FONT_FILE = "Fonts\\FRIZQT__.TTF"
