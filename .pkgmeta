@@ -1,6 +1,11 @@
 ## pkgmeta for BigWigsMods/packager
 package-as: Cadence
 curse-id: 1535831
+# Explicit retail game versions — packager tags both so CurseForge app
+# shows the update to users on either patch.
+game-versions:
+  - "12.0.5"
+  - "12.0.7"
 
 ignore:
   - .github
