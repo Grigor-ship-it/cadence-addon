@@ -488,6 +488,12 @@ local function OnEvent(self, event, ...)
 
         StartCombatTracking(GetTime(), not segmentDirty)
 
+        -- Start group-sync snapshot broadcasts. Comm internally no-ops when
+        -- not in a group, so this is safe in solo play.
+        if PC.Comm and PC.Comm.OnSegmentStart then
+            PC.Comm.OnSegmentStart(0, GetTime())
+        end
+
         if debugMode then
             local memberCount = Utils.TableCount(rosterGUIDs)
             print("|cffFFD666PC Debug|r: Combat START ("
@@ -529,6 +535,14 @@ local function OnEvent(self, event, ...)
                 if not ok and debugMode then
                     print("|cffff0000PC Error|r: Snapshot failed: " .. tostring(err))
                 end
+                -- Final sync broadcast for the trash pull
+                if PC.Comm and PC.Comm.OnSegmentEnd then
+                    local guid  = UnitGUID("player")
+                    local snap  = PC.Tracker and PC.Tracker.SnapshotPlayer and PC.Tracker.SnapshotPlayer(guid)
+                    local score = (snap and PC.Scoring and PC.Scoring.CalcCompositeScoreFromSnapshot
+                                    and PC.Scoring.CalcCompositeScoreFromSnapshot(snap)) or 0
+                    PC.Comm.OnSegmentEnd(score)
+                end
             end
 
             segmentDirty = false
@@ -539,21 +553,44 @@ local function OnEvent(self, event, ...)
         justEndedEncounter = false
         Segments.OnEncounterStart(encounterID, encounterName, difficultyID, groupSize)
         StartCombatTracking(GetTime(), true)
+        if PC.Comm and PC.Comm.OnSegmentStart then
+            PC.Comm.OnSegmentStart(encounterID, GetTime())
+        end
 
     elseif event == "ENCOUNTER_END" then
         local encounterID, encounterName, difficultyID, groupSize, success = ...
         Segments.OnEncounterEnd(encounterID, encounterName, difficultyID, groupSize, success)
         justEndedEncounter = true
         segmentDirty = false
+        -- Broadcast the final snapshot to peers. Score computed locally from
+        -- our own snapshot; peers use it to identify the canonical final.
+        if PC.Comm and PC.Comm.OnSegmentEnd then
+            local guid  = UnitGUID("player")
+            local snap  = PC.Tracker and PC.Tracker.SnapshotPlayer and PC.Tracker.SnapshotPlayer(guid)
+            local score = (snap and PC.Scoring and PC.Scoring.CalcCompositeScoreFromSnapshot
+                            and PC.Scoring.CalcCompositeScoreFromSnapshot(snap)) or 0
+            PC.Comm.OnSegmentEnd(score)
+        end
 
     elseif event == "CHALLENGE_MODE_START" then
         Segments.OnChallengeModeStart()
         segmentDirty = false
         StartCombatTracking(GetTime(), true)
+        if PC.Comm and PC.Comm.OnSegmentStart then
+            -- M+ has no encounterID; use the keystone start time as the seed.
+            PC.Comm.OnSegmentStart("mplus", GetTime())
+        end
 
     elseif event == "CHALLENGE_MODE_COMPLETED" then
         Segments.OnChallengeModeComplete()
         segmentDirty = false
+        if PC.Comm and PC.Comm.OnSegmentEnd then
+            local guid  = UnitGUID("player")
+            local snap  = PC.Tracker and PC.Tracker.SnapshotPlayer and PC.Tracker.SnapshotPlayer(guid)
+            local score = (snap and PC.Scoring and PC.Scoring.CalcCompositeScoreFromSnapshot
+                            and PC.Scoring.CalcCompositeScoreFromSnapshot(snap)) or 0
+            PC.Comm.OnSegmentEnd(score)
+        end
 
     elseif event == "GROUP_ROSTER_UPDATE" then
         RefreshRosterCache()

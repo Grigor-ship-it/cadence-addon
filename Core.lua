@@ -110,6 +110,7 @@ initFrame:SetScript("OnEvent", function(self, event, arg1)
         if PC.Polling and PC.Polling.Init then PC.Polling.Init() end
         if PC.Events and PC.Events.Init then PC.Events.Init() end
         if PC.Segments and PC.Segments.Init then PC.Segments.Init() end
+        if PC.Comm and PC.Comm.Init then PC.Comm.Init() end
         if PC.UI_Meter and PC.UI_Meter.Init then PC.UI_Meter.Init() end
         if PC.Options and PC.Options.Init then PC.Options.Init() end
         if PC.UI_BRezAdvisor and PC.UI_BRezAdvisor.Init then PC.UI_BRezAdvisor.Init() end
@@ -204,6 +205,20 @@ SlashCmdList["CADENCE"] = function(input)
         PC.db.profile.showMinimap = not PC.db.profile.showMinimap
         print("|cffffffffCad|r|cffFFD666ence|r: Minimap icon " ..
               (PC.db.profile.showMinimap and "shown" or "hidden") .. ".")
+
+    elseif cmd == "sync" then
+        -- Show who in the party/raid is running Cadence
+        if PC.Comm and PC.Comm.ShowSync then
+            PC.Comm.ShowSync()
+        else
+            print("|cffffffffCad|r|cffFFD666ence|r: Comm module not loaded.")
+        end
+
+    elseif cmd == "dump-comm" then
+        -- Debug dump of comm state + peer table
+        if PC.Comm and PC.Comm.DumpDebug then
+            PC.Comm.DumpDebug()
+        end
 
     elseif cmd == "brez" or cmd:match("^brez%s") then
         local arg = cmd:match("^brez%s+(.+)")

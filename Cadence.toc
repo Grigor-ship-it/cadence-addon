@@ -19,6 +19,7 @@ MeterData.lua
 Polling.lua
 Segments.lua
 Events.lua
+Comm.lua
 QREncode.lua
 RewardTiers.lua
 RewardsDB.lua

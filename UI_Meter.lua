@@ -67,6 +67,8 @@ local mainFrame = nil
 local titleBar = nil
 local titleText = nil
 local timerText = nil
+local syncText = nil
+local syncTextFrame = nil
 local scrollFrame = nil
 local contentFrame = nil
 local barRows = {}        -- array of bar row frames
@@ -157,6 +159,36 @@ function UI.CreateMainFrame()
     timerText:SetPoint("RIGHT", titleBar, "RIGHT", -22, 0)
     timerText:SetTextColor(C_TEXT_MUTED[1], C_TEXT_MUTED[2], C_TEXT_MUTED[3])
     timerText:SetText("")
+
+    -- Sync status badge (group-sync indicator, left of timer).
+    -- Hidden when solo; shows "n/m sync" when ≥ 1 peer is running Cadence.
+    -- Tooltip lists peers; click → /cadence sync printout.
+    syncText = titleBar:CreateFontString(nil, "OVERLAY")
+    syncText:SetFont(FONT_FILE, 9, "OUTLINE")
+    syncText:SetPoint("RIGHT", timerText, "LEFT", -8, 0)
+    syncText:SetTextColor(C_TEXT_MUTED[1], C_TEXT_MUTED[2], C_TEXT_MUTED[3])
+    syncText:SetText("")
+    syncTextFrame = CreateFrame("Frame", nil, titleBar)
+    syncTextFrame:SetAllPoints(syncText)
+    syncTextFrame:EnableMouse(true)
+    syncTextFrame:SetScript("OnEnter", function(self)
+        if not PC.Comm then return end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        local synced, total = PC.Comm.GetSyncStatus()
+        GameTooltip:AddLine("Cadence Sync", 0.95, 0.75, 0.30)
+        GameTooltip:AddLine(synced .. " of " .. total .. " in this group run Cadence",
+                            1, 1, 1)
+        PC.Comm.ForEachPeer(function(_, p)
+            GameTooltip:AddLine("  " .. (p.name or "?") .. "  v" .. (p.version or "?"),
+                                0.75, 0.85, 0.95)
+        end)
+        if synced <= 1 then
+            GameTooltip:AddLine("Group sync activates when other party/raid members install Cadence.",
+                                0.6, 0.6, 0.6, true)
+        end
+        GameTooltip:Show()
+    end)
+    syncTextFrame:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     -- Close button (custom × glyph)
     local closeBtn = CreateFrame("Button", nil, titleBar)
@@ -664,6 +696,29 @@ end
 ---------------------------------------------------------------------------
 function UI.UpdateTitle()
     if not titleText or not timerText then return end
+
+    -- ── Sync badge ──────────────────────────────────────────────
+    -- Visible whenever ≥ 1 peer is running Cadence in our group. We do NOT
+    -- show "1/1" in solo play; that would just be noise.
+    if syncText then
+        if PC.Comm and PC.Comm.GetSyncStatus then
+            local synced, total = PC.Comm.GetSyncStatus()
+            if synced >= 2 then
+                syncText:SetText(string.format("%d/%d sync", synced, total))
+                if synced == total then
+                    syncText:SetTextColor(C_SUCCESS[1], C_SUCCESS[2], C_SUCCESS[3])
+                else
+                    -- Amber when partial — visually distinguishes "everyone has it"
+                    -- (green) from "some still on combat-log fallback" (amber).
+                    syncText:SetTextColor(C_GOLD[1], C_GOLD[2], C_GOLD[3])
+                end
+            else
+                syncText:SetText("")
+            end
+        else
+            syncText:SetText("")
+        end
+    end
 
     local segIdx = Segments.GetActiveIndex()
 
