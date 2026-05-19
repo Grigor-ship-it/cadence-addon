@@ -61,7 +61,7 @@ local SNAPSHOT_INTERVAL = 3.0           -- seconds between in-combat broadcasts
 local HELLO_MIN_GAP     = 30            -- min seconds between hello rebroadcasts
 local PEER_TTL          = 120           -- drop a peer after 2 min of silence
 local MAX_APM_X10       = 2500          -- cap on accepted APM (250 APM)
-local ADDON_VERSION     = "1.2.0"       -- bump on wire format change
+local ADDON_VERSION     = "1.2.1"       -- bump on wire format change
 
 -- ── State ──────────────────────────────────────────────────────────────
 -- peers[guid] = {

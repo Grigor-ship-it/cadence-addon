@@ -136,8 +136,13 @@ function UIQR.EncodePayload(segment)
     elseif segType == "soloshuffle" then typeCode = "S"
     end
 
-    -- Realm name (preserve spaces as hyphens; parser converts back)
-    local realm = GetNormalizedRealmName() or "Unknown"
+    -- Realm name (preserve spaces as hyphens; parser converts back).
+    -- Use GetRealmName() not GetNormalizedRealmName() because the latter
+    -- already strips spaces for German/French realms (e.g.
+    -- "Kult der Verdammten" -> "KultderVerdammten"), which then defeats our
+    -- space->hyphen conversion and produces a realm slug that doesn't match
+    -- Blizzard's canonical URL slug ("kult-der-verdammten").
+    local realm = GetRealmName() or GetNormalizedRealmName() or "Unknown"
     realm = utf8sub(realm:gsub("[|_.~:+]", ""):gsub("%s+", "-"), 24)
 
     -- Clean encounter name (strip payload delimiters, preserve UTF-8 accented chars)
