@@ -8,7 +8,7 @@
 ## DefaultState: enabled
 ## X-Category: Combat
 ## X-Website: https://cadencewow.com
-## X-CurseForge-Project-ID: 1535831
+## X-Curse-Project-ID: 1535831
 
 Utils.lua
 SpellDB.lua
