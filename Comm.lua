@@ -61,7 +61,7 @@ local SNAPSHOT_INTERVAL = 3.0           -- seconds between in-combat broadcasts
 local HELLO_MIN_GAP     = 30            -- min seconds between hello rebroadcasts
 local PEER_TTL          = 120           -- drop a peer after 2 min of silence
 local MAX_APM_X10       = 2500          -- cap on accepted APM (250 APM)
-local ADDON_VERSION     = "1.1.0"       -- bump on wire format change
+local ADDON_VERSION     = "1.1.1"       -- bump on wire format change
 
 -- ── State ──────────────────────────────────────────────────────────────
 -- peers[guid] = {
@@ -280,6 +280,18 @@ local function onAddonMessage(prefix, msg, _channel, sender)
     -- Resolve sender → GUID. The sender param is "Name-Realm"; look up
     -- via UnitGUID where possible, fall back to keying on the string.
     local guid = UnitGUID(sender) or sender
+
+    -- Filter our own echo. SendAddonMessage delivers a copy back to the
+    -- sender on PARTY/RAID/INSTANCE_CHAT; without this guard we count
+    -- ourselves as a peer ("2/2 sync" when solo with the addon).
+    local selfGuid = UnitGUID("player")
+    if selfGuid and guid == selfGuid then return end
+    -- Also defend against the name-fallback case (sender == our own name).
+    local selfName = UnitName("player")
+    if selfName and (sender == selfName or sender:match("^([^%-]+)") == selfName) then
+        if not selfGuid or guid == selfName then return end
+    end
+
     local peer = peers[guid]
     if not peer then
         peer = { name = sender, lastSeen = 0 }
@@ -316,12 +328,17 @@ function Comm.GetActivePeerCount()
     return count
 end
 
--- Returns "X/Y" where Y = group size (incl. self), X = self + active peers.
+-- Returns "synced, total" where total = group size (incl. self) and
+-- synced = self + other-peers seen on the addon channel within PEER_TTL.
+-- When solo (not in a party), returns (1, 1) so callers can hide the badge.
 function Comm.GetSyncStatus()
-    local groupSize = math.max(GetNumGroupMembers() or 0, 1)
+    local raw = GetNumGroupMembers() or 0
+    if raw <= 1 then
+        return 1, 1 -- solo: nothing to sync against
+    end
     local synced = Comm.GetActivePeerCount() + 1 -- +1 for self
-    if synced > groupSize then synced = groupSize end
-    return synced, groupSize
+    if synced > raw then synced = raw end
+    return synced, raw
 end
 
 -- Iterate all live peers. Used by /cadence sync.
