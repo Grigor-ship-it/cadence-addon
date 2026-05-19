@@ -96,10 +96,10 @@ local function GenerateNonce()
 end
 
 ---------------------------------------------------------------------------
--- Payload encoding v9: segment → compact URL string
+-- Payload encoding v10: segment → compact URL string
 --
 -- Format (pipe-delimited header, dot-delimited players):
---   v|type|realm|encounter|duration|timestamp|nonce|addonVer|claimToken|encounterID|difficultyID|instanceID|teamSize|keystoneLevel|player.player...
+--   v|type|realm|encounter|duration|timestamp|nonce|addonVer|claimToken|encounterID|difficultyID|instanceID|teamSize|keystoneLevel|region|player.player...
 --
 -- Player sub-format (underscore-delimited):
 --   Name_CC_Score_APM10_Uptime_Deaths_Role_Abilities_DmgK_HealK_Dps_Hps_Intrs_Dispels_AvoidK_MDeaths_SpecID_Ilvl_PvpScore_Ext_RaidCd_Sup_CC
@@ -107,6 +107,11 @@ end
 -- Abilities sub-format (plus-delimited, colon key:value):
 --   spellID:count+spellID:count+...   (top 5 by cast count)
 --
+-- v10 adds (field 15): region (us|eu|kr|tw|cn) from GetCurrentRegion().
+--   Lets the backend route character lookups to the correct regional
+--   Blizzard API host (us.api.blizzard.com vs eu.api.blizzard.com etc).
+--   WoW does not cross-realm across regions, so the reporter's region
+--   applies to all 5 players in the group.
 -- v9 adds (fields 18-23): Ilvl, PvpScore, Ext, RaidCd, Sup, CC.
 --   - Ilvl: equipped iLvl, only set for the reporter (others = 0, backend backfills).
 --   - PvpScore: parallel cadence score using arena weights.
@@ -239,7 +244,7 @@ function UIQR.EncodePayload(segment)
         table.insert(playerParts, 1, reporterEntry)
     end
 
-    -- Header: v|type|realm|encounter|duration|timestamp|nonce|addonVer|claimToken|encounterID|difficultyID|instanceID|teamSize|keystoneLevel
+    -- Header: v|type|realm|encounter|duration|timestamp|nonce|addonVer|claimToken|encounterID|difficultyID|instanceID|teamSize|keystoneLevel|region
     -- Players: dot-separated after header, joined with a trailing pipe
     local claimToken = (PC.db and PC.db.profile and PC.db.profile.claimToken) or "0"
     local encID = tostring(segment.encounterID or 0)
@@ -247,8 +252,17 @@ function UIQR.EncodePayload(segment)
     local instID = tostring(segment.instanceID or 0)
     local teamSz = tostring(segment.teamSize or 0)
     local ksLvl = tostring(segment.keystoneLevel or 0)
+
+    -- Region code: 1=US, 2=KR, 3=EU, 4=TW, 5=CN, 72=PTR.
+    -- Map to lowercase 2-letter slug matching backend region columns and
+    -- the {region}.api.blizzard.com subdomain convention. Default to "us"
+    -- if GetCurrentRegion is unavailable or returns an unknown value.
+    local REGION_CODE = { [1] = "us", [2] = "kr", [3] = "eu", [4] = "tw", [5] = "cn" }
+    local regionId = (GetCurrentRegion and GetCurrentRegion()) or 1
+    local regionSlug = REGION_CODE[regionId] or "us"
+
     local header = table.concat({
-        "9",        -- payload version (v9 adds ilvl + pvpScore + utility breakdown)
+        "10",       -- payload version (v10 adds region for backend API routing)
         typeCode,
         realm,
         name,
@@ -262,6 +276,7 @@ function UIQR.EncodePayload(segment)
         instID,
         teamSz,
         ksLvl,
+        regionSlug,
     }, "|")
 
     local players = table.concat(playerParts, ".")
