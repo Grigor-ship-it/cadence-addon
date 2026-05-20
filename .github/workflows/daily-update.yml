@@ -37,18 +37,30 @@ jobs:
           git add RewardsDB*.lua ScoresDB*.lua
           git commit -m "chore: daily DB update $(date -u +%Y-%m-%d)"
 
-      - name: Auto-tag new patch release
+      - name: Auto-tag daily DB release
         if: steps.changes.outputs.changed == 'true'
         run: |
-          # Get latest tag, bump patch number
+          # Daily DB-only releases append a date suffix to the latest
+          # SEMVER tag (major.minor.patch). This keeps real code releases
+          # (v1.2.2, v1.2.3, …) cleanly separated from data refreshes
+          # (v1.2.2.20260520, v1.2.2.20260521, …). When you cut a new
+          # manual semver tag, daily releases automatically rebase onto
+          # that new base.
           git fetch --tags
-          LATEST=$(git tag --sort=-v:refname | grep '^v' | head -1)
-          if [ -z "$LATEST" ]; then
-            NEW_TAG="v1.0.1"
-          else
-            IFS='.' read -r major minor patch <<< "${LATEST#v}"
-            NEW_TAG="v${major}.${minor}.$((patch + 1))"
+          BASE=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+          if [ -z "$BASE" ]; then
+            BASE="v1.0.0"
           fi
-          echo "Tagging $NEW_TAG"
+          DATE=$(date -u +%Y%m%d)
+          NEW_TAG="${BASE}.${DATE}"
+          # If today's tag already exists (workflow re-run), bump with -N
+          if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
+            N=2
+            while git rev-parse "${NEW_TAG}.${N}" >/dev/null 2>&1; do
+              N=$((N + 1))
+            done
+            NEW_TAG="${NEW_TAG}.${N}"
+          fi
+          echo "Tagging $NEW_TAG (base: $BASE)"
           git tag "$NEW_TAG"
           git push origin main "$NEW_TAG"
