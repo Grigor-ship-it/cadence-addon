@@ -13,7 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Use a PAT so pushed tags trigger the Release workflow.
+          # GITHUB_TOKEN cannot trigger downstream workflows (GitHub safeguard).
+          token: ${{ secrets.RELEASE_PAT }}
 
       - name: Fetch latest Lua DB files from API
         run: |
