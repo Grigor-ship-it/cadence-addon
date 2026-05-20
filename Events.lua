@@ -34,7 +34,13 @@ local trashPullCounter    = 0
 local justEndedEncounter  = false
 local knownDead           = {}
 local lastInstanceID      = nil
+-- Arena state. Solo Shuffle pulses PVP_MATCH_ACTIVE + PVP_MATCH_COMPLETE
+-- between rounds, so we DON'T use those events as the source of truth for
+-- "are we in an arena match?". Instead `inArenaMatch` is driven by zone
+-- changes (set true when we enter an arena instance, false when we leave).
+-- That gives us a stable flag for the full match duration.
 local inArenaMatch        = false
+local arenaMatchSetupDone = false -- first PVP_MATCH_ACTIVE since zone-entry
 local combatEndTimer      = nil   -- cancellable REGEN_ENABLED debounce
 local segmentDirty        = false -- tracker has unsaved combat data
 local shuffleRoundCounter = 0     -- solo shuffle: increments per round
@@ -667,7 +673,13 @@ local function OnEvent(self, event, ...)
         if inInstance and instanceType == "party" then
             Segments.SetInDungeon(true)
         elseif inInstance and instanceType == "arena" then
+            inArenaMatch = true
             Segments.SetInArena(true)
+        else
+            -- Loaded outside an arena: clear arena flags. Defensive in case
+            -- the user /reloaded inside one and we missed the zone-leave.
+            inArenaMatch = false
+            arenaMatchSetupDone = false
         end
 
     elseif event == "ZONE_CHANGED_NEW_AREA" then
@@ -699,9 +711,37 @@ local function OnEvent(self, event, ...)
                 if PC.Polling and PC.Polling.Reset then PC.Polling.Reset() end
                 Segments.ResetAll()
                 segmentDirty = false
+                -- Fresh arena instance: reset per-match state.
+                shuffleRoundCounter = 0
+                shuffleRoundHasData = false
+                arenaMatchSetupDone = false
+                trashPullCounter = 0
             end
+            -- Zone-based: we are in an arena instance for the whole match.
+            inArenaMatch = true
             Segments.SetInArena(true)
         else
+            -- Leaving any instance.
+            if inArenaMatch then
+                -- True arena match end (zone leave). Snapshot final round
+                -- in solo shuffle, then build the match summary.
+                if PC.Polling and PC.Polling.Stop then PC.Polling.Stop() end
+                Tracker.SetCombatEnd(GetTime())
+                local isShuffle = Segments.IsSoloShuffle and Segments.IsSoloShuffle()
+                if isShuffle and shuffleRoundCounter > 0 and shuffleRoundHasData then
+                    local finalName = "Solo Shuffle Round " .. shuffleRoundCounter
+                    pcall(Segments.CreateSnapshot, finalName, "soloshuffle")
+                    shuffleRoundHasData = false
+                end
+                local winner = GetBattlefieldWinner and GetBattlefieldWinner()
+                local playerTeam = GetBattlefieldArenaFaction and GetBattlefieldArenaFaction() or 0
+                local didWin = (winner ~= nil and winner == playerTeam)
+                Segments.OnArenaEnd(didWin)
+                justEndedEncounter = true
+                inArenaMatch = false
+                arenaMatchSetupDone = false
+                shuffleRoundCounter = 0
+            end
             if Segments.IsInDungeon() and not Segments.IsInMythicPlus() then
                 if Segments.IsAccumulating() then
                     local accSeg = Segments.BuildAccumulatedSegment()
@@ -720,7 +760,18 @@ local function OnEvent(self, event, ...)
         local instanceType = rawInstanceType and CleanString(rawInstanceType) or ""
         if instanceType ~= "arena" then return end
 
+        -- inArenaMatch is owned by zone-change. PVP_MATCH_ACTIVE can fire
+        -- multiple times in solo shuffle (once per round) -- only run the
+        -- first-time setup. Subsequent fires are between-round pulses and
+        -- handled by PLAYER_REGEN_DISABLED.
         inArenaMatch = true
+        if arenaMatchSetupDone then
+            if debugMode then
+                print("|cffFFD666PC Debug|r: PVP_MATCH_ACTIVE pulse (round transition)")
+            end
+            return
+        end
+        arenaMatchSetupDone = true
         shuffleRoundCounter = 0
         shuffleRoundHasData = false
 
@@ -760,28 +811,13 @@ local function OnEvent(self, event, ...)
         if inArenaMatch then RefreshRosterCache() end
 
     elseif event == "PVP_MATCH_COMPLETE" then
-        if not inArenaMatch then return end
-        if PC.Polling and PC.Polling.Stop then PC.Polling.Stop() end
-        Tracker.SetCombatEnd(GetTime())
-
-        -- Solo shuffle: snapshot the final round before the match summary,
-        -- otherwise rounds 2..N-1 are lost (only round 1 + final survived).
-        local isShuffle = Segments.IsSoloShuffle and Segments.IsSoloShuffle()
-        if isShuffle and shuffleRoundCounter > 0 and shuffleRoundHasData then
-            local finalName = "Solo Shuffle Round " .. shuffleRoundCounter
-            pcall(Segments.CreateSnapshot, finalName, "soloshuffle")
-            shuffleRoundHasData = false
+        -- PVP_MATCH_COMPLETE pulses between solo shuffle rounds. The real
+        -- match end is detected via ZONE_CHANGED_NEW_AREA (leaving the arena
+        -- instance) where we snapshot the final round + build the summary.
+        -- Treat this as a no-op while still in the arena zone.
+        if debugMode then
+            print("|cffFFD666PC Debug|r: PVP_MATCH_COMPLETE (deferring to zone-leave for true end)")
         end
-
-        inArenaMatch = false
-        shuffleRoundCounter = 0
-
-        local winner = GetBattlefieldWinner and GetBattlefieldWinner()
-        local playerTeam = GetBattlefieldArenaFaction and GetBattlefieldArenaFaction() or 0
-        local didWin = (winner ~= nil and winner == playerTeam)
-
-        Segments.OnArenaEnd(didWin)
-        justEndedEncounter = true
     end
 end
 

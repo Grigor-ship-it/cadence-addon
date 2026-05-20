@@ -12,7 +12,7 @@ local Utils = PC.Utils
 ---------------------------------------------------------------------------
 -- Constants
 ---------------------------------------------------------------------------
-PC.VERSION = "1.0.0"
+-- PC.VERSION is set in Core.lua from TOC metadata. Don't hard-code here.
 
 -- Class color fallback table (Retail provides RAID_CLASS_COLORS but we keep a safe copy)
 PC.CLASS_COLORS = {}

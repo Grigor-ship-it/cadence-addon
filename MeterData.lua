@@ -300,24 +300,25 @@ function MeterData.EnrichSnapshots(snapshots, sessionType)
         end
     end
 
-    -- Diagnostic: report enrichment results
+    -- Diagnostic: only print when something is wrong (0 matches) and only
+    -- when Events debug mode is on. Successful enrichment is the common
+    -- case and was producing noisy chat spam per segment.
     local totalPlayers = 0
     for _ in pairs(snapshots) do totalPlayers = totalPlayers + 1 end
     local enrichedCount = 0
     for _ in pairs(enrichedGUIDs) do enrichedCount = enrichedCount + 1 end
-    if totalPlayers > 0 then
-        print(string.format("|cffffffffCad|r|cffFFD666ence|r: Meter enrichment: %d/%d players matched.",
-            enrichedCount, totalPlayers))
-        if enrichedCount == 0 then
-            local testSources = QueryMeterType(sessionType, METER_TYPE.DamageDone)
-            local srcCount = testSources and #testSources or 0
-            print(string.format("  |cffff8888API returned %d damage sources but matched 0 players.|r", srcCount))
-            if testSources and testSources[1] then
-                local s = testSources[1]
-                print(string.format("  |cffff8888Sample source: guid=%s name=%s class=%s total=%.0f|r",
-                    tostring(s.guid or "NIL"), tostring(s.name or "NIL"),
-                    tostring(s.class or "NIL"), s.total or 0))
-            end
+    local debugOn = PC.Events and PC.Events.IsDebug and PC.Events.IsDebug()
+    if debugOn and totalPlayers > 0 and enrichedCount == 0 then
+        print(string.format("|cffffffffCad|r|cffFFD666ence Debug|r: Meter enrichment 0/%d players matched.",
+            totalPlayers))
+        local testSources = QueryMeterType(sessionType, METER_TYPE.DamageDone)
+        local srcCount = testSources and #testSources or 0
+        print(string.format("  |cffff8888API returned %d damage sources but matched 0 players.|r", srcCount))
+        if testSources and testSources[1] then
+            local s = testSources[1]
+            print(string.format("  |cffff8888Sample source: guid=%s name=%s class=%s total=%.0f|r",
+                tostring(s.guid or "NIL"), tostring(s.name or "NIL"),
+                tostring(s.class or "NIL"), s.total or 0))
         end
     end
 
