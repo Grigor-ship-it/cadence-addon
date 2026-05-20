@@ -483,6 +483,9 @@ local function OnEvent(self, event, ...)
         if inArenaMatch then
             -- Arena setup already done in PVP_MATCH_ACTIVE
             if PC.Polling and PC.Polling.Start then PC.Polling.Start() end
+            if PC.db and PC.db.profile and PC.db.profile.autoShowInCombat then
+                if PC.UI_Meter and PC.UI_Meter.Show then PC.UI_Meter.Show() end
+            end
             return
         end
 
@@ -687,6 +690,10 @@ local function OnEvent(self, event, ...)
         print("|cffFFD666Cadence|r: Arena match ACTIVE ("
             .. (isShuffle and "Solo Shuffle" or "Rated Arena")
             .. "), " .. enemyCount .. " opponents visible via UnitGUID")
+
+        if PC.db and PC.db.profile and PC.db.profile.autoShowInCombat then
+            if PC.UI_Meter and PC.UI_Meter.Show then PC.UI_Meter.Show() end
+        end
 
     elseif event == "ARENA_OPPONENT_UPDATE" then
         if inArenaMatch then RefreshRosterCache() end
