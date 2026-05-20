@@ -9,6 +9,24 @@ PC.Core = {}
 local Core = PC.Core
 
 ---------------------------------------------------------------------------
+-- Version (read from TOC; falls back to "dev" for unpacked installs where
+-- the @project-version@ token wasn't substituted by the CurseForge packager)
+---------------------------------------------------------------------------
+local function ResolveVersion()
+    local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+    local v
+    if getMeta then
+        local ok, val = pcall(getMeta, ADDON_NAME, "Version")
+        if ok then v = val end
+    end
+    if not v or v == "" or v:find("@project%-version@") then
+        return "dev"
+    end
+    return v
+end
+PC.VERSION = ResolveVersion()
+
+---------------------------------------------------------------------------
 -- Defaults for SavedVariables
 ---------------------------------------------------------------------------
 local DB_DEFAULTS = {
@@ -279,6 +297,9 @@ SlashCmdList["CADENCE"] = function(input)
             end
         end
 
+    elseif cmd == "version" or cmd == "v" then
+        print("|cffffffffCad|r|cffFFD666ence|r v" .. tostring(PC.VERSION))
+
     elseif cmd == "test" then
         print("|cffffffffCad|r|cffFFD666ence Self-Test:|r")
         print("  Mode: Midnight 12.0 (UNIT_SPELLCAST_SUCCEEDED)")
@@ -349,6 +370,7 @@ SlashCmdList["CADENCE"] = function(input)
         print("  /cad dump    - Per-player polling + meter report (run after a pull)")
         print("  /cad minimap - Toggle minimap icon")
         print("  /cad segment N - Switch to segment N")
+        print("  /cad version - Show addon version")
         print("  /cad test    - Run self-diagnostics")
     end
 end
