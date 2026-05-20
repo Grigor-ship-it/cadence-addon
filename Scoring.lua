@@ -425,7 +425,40 @@ end
 --   • Uptime against CC is a key skill signal — uptime weight is higher
 --   • APM while active still matters — keeps APM component
 --
--- PvP Formula:\n--   APMScore    = same negative-exponential curve as PvE\n--   UptimeScore = same intent-gap based uptime, but with relaxed gap threshold\n--   BaseScore   = 0.50 * APMScore + 0.50 * UptimeScore\n--   (Death penalty removed from engagement — handled by Cadence deaths component)\n--\n-- No gap penalty (CC/slows are external forces).\n-- No consistency modifier (burst windows are strategic, not lazy).\n---------------------------------------------------------------------------\n\nfunction Scoring.CalcPvPUptimeScore(guid)\n    local pd = Tracker.GetPlayerData(guid)\n    if not pd then return 0 end\n\n    local count = GetEffectiveCounts(pd)\n    if count < 2 then return 0 end\n\n    local duration = Tracker.GetCombatDuration(guid)\n    if duration <= 0 then return 0 end\n\n    -- Relaxed gap threshold for PvP: 4s (vs 2.5s PvE) because\n    -- players may be CC'd, kiting, or LoS'ing for several seconds\n    return Tracker.GetIntentUptimePercent(guid, 4.0)\nend\n\nfunction Scoring.CalcPvPCompositeScore(guid)\n    local apmScore    = Scoring.CalcAPMScore(guid)\n    local uptimeScore = Scoring.CalcPvPUptimeScore(guid)\n\n    local baseScore = apmScore * 0.50 + uptimeScore * 0.50\n\n    -- v3: No death penalty in engagement — handled by Cadence deaths component\n    return Utils.Clamp(math.floor(baseScore), 0, 100)\nend
+-- PvP Formula:
+--   APMScore    = same negative-exponential curve as PvE
+--   UptimeScore = same intent-gap based uptime, but with relaxed gap threshold
+--   BaseScore   = 0.50 * APMScore + 0.50 * UptimeScore
+--   (Death penalty removed from engagement — handled by Cadence deaths component)
+--
+-- No gap penalty (CC/slows are external forces).
+-- No consistency modifier (burst windows are strategic, not lazy).
+---------------------------------------------------------------------------
+
+function Scoring.CalcPvPUptimeScore(guid)
+    local pd = Tracker.GetPlayerData(guid)
+    if not pd then return 0 end
+
+    local count = GetEffectiveCounts(pd)
+    if count < 2 then return 0 end
+
+    local duration = Tracker.GetCombatDuration(guid)
+    if duration <= 0 then return 0 end
+
+    -- Relaxed gap threshold for PvP: 4s (vs 2.5s PvE) because
+    -- players may be CC'd, kiting, or LoS'ing for several seconds
+    return Tracker.GetIntentUptimePercent(guid, 4.0)
+end
+
+function Scoring.CalcPvPCompositeScore(guid)
+    local apmScore    = Scoring.CalcAPMScore(guid)
+    local uptimeScore = Scoring.CalcPvPUptimeScore(guid)
+
+    local baseScore = apmScore * 0.50 + uptimeScore * 0.50
+
+    -- v3: No death penalty in engagement — handled by Cadence deaths component
+    return Utils.Clamp(math.floor(baseScore), 0, 100)
+end
 
 ---------------------------------------------------------------------------
 -- PvP full score report (used by tooltip — debug instrumentation)
