@@ -37,6 +37,8 @@ local lastInstanceID      = nil
 local inArenaMatch        = false
 local combatEndTimer      = nil   -- cancellable REGEN_ENABLED debounce
 local segmentDirty        = false -- tracker has unsaved combat data
+local shuffleRoundCounter = 0     -- solo shuffle: increments per round
+local shuffleRoundHasData = false -- current round has tracked data to snapshot
 
 -- Roster
 local rosterGUIDs      = {}  -- [guid] = true
@@ -359,6 +361,10 @@ local function RegisterUnitFlagsPools()
     else
         for i = 1, math.max(groupSize - 1, 0) do tokens[#tokens + 1] = "party" .. i end
     end
+    -- Arena enemies (so we detect opponent deaths = round ends in solo shuffle)
+    if inArenaMatch then
+        for i = 1, 5 do tokens[#tokens + 1] = "arena" .. i end
+    end
     local idx = 0
     for i = 1, #tokens, 2 do
         idx = idx + 1
@@ -481,7 +487,44 @@ local function OnEvent(self, event, ...)
         if combatEndTimer then combatEndTimer:Cancel(); combatEndTimer = nil end
 
         if inArenaMatch then
-            -- Arena setup already done in PVP_MATCH_ACTIVE
+            local now = GetTime()
+            local isShuffle = Segments.IsSoloShuffle and Segments.IsSoloShuffle()
+
+            if isShuffle then
+                -- Per-round handling: snapshot previous round (if any data),
+                -- then reset trackers for the new round.
+                if shuffleRoundCounter > 0 and shuffleRoundHasData then
+                    Tracker.SetCombatEnd(now)
+                    local prevName = "Solo Shuffle Round " .. shuffleRoundCounter
+                    pcall(Segments.CreateSnapshot, prevName, "soloshuffle")
+                end
+
+                shuffleRoundCounter = shuffleRoundCounter + 1
+                shuffleRoundHasData = false
+
+                -- Wipe per-round state so the new round starts clean.
+                Utils.WipeTable(knownDead)
+                Utils.WipeTable(pollActivePerGuid)
+                Utils.WipeTable(lastEventTick)
+                Tracker.ResetAll()
+                if PC.Polling and PC.Polling.Reset then PC.Polling.Reset() end
+
+                -- Refresh roster (shuffled teammates may have changed) and
+                -- ensure every roster member exists in the tracker.
+                RefreshRosterCache()
+                RegisterUnitFlagsPools()
+                RegisterPartyUnitEvents()
+                CacheAllRosterInfo()
+                for guid in pairs(rosterGUIDs) do Tracker.EnsurePlayer(guid) end
+
+                Tracker.SetCombatStart(now)
+                segmentDirty = true
+
+                if debugMode then
+                    print("|cffFFD666PC Debug|r: Solo Shuffle Round " .. shuffleRoundCounter .. " START")
+                end
+            end
+
             if PC.Polling and PC.Polling.Start then PC.Polling.Start() end
             if PC.db and PC.db.profile and PC.db.profile.autoShowInCombat then
                 if PC.UI_Meter and PC.UI_Meter.Show then PC.UI_Meter.Show() end
@@ -511,7 +554,20 @@ local function OnEvent(self, event, ...)
         inCombat = false
         if PC.Polling and PC.Polling.Stop then PC.Polling.Stop() end
 
-        if inArenaMatch then return end  -- arena handles its own end
+        if inArenaMatch then
+            -- Freeze the round timer at the correct end time. The round's
+            -- snapshot is created on the next PLAYER_REGEN_DISABLED (next
+            -- round start) or in PVP_MATCH_COMPLETE (final round).
+            Tracker.SetCombatEnd(GetTime())
+            -- Mark that this round has data worth snapshotting.
+            for _, pd in pairs(Tracker.GetAllPlayerData()) do
+                if pd.actionCount and pd.actionCount > 0 then
+                    shuffleRoundHasData = true
+                    break
+                end
+            end
+            return
+        end
 
         Tracker.SetCombatEnd(GetTime())
 
@@ -665,6 +721,8 @@ local function OnEvent(self, event, ...)
         if instanceType ~= "arena" then return end
 
         inArenaMatch = true
+        shuffleRoundCounter = 0
+        shuffleRoundHasData = false
 
         local _, _, diffID = GetInstanceInfo()
         local isShuffle = (diffID == 231 or (C_PvP and C_PvP.IsSoloShuffle and C_PvP.IsSoloShuffle()))
@@ -672,6 +730,9 @@ local function OnEvent(self, event, ...)
         Segments.OnArenaStart(isShuffle)
         Tracker.ResetAll()
         if PC.Polling and PC.Polling.Reset then PC.Polling.Reset() end
+        Utils.WipeTable(knownDead)
+        Utils.WipeTable(pollActivePerGuid)
+        Utils.WipeTable(lastEventTick)
 
         local members = Utils.ScanGroupRoster()
         for guid, _ in pairs(members) do Tracker.EnsurePlayer(guid) end
@@ -700,9 +761,20 @@ local function OnEvent(self, event, ...)
 
     elseif event == "PVP_MATCH_COMPLETE" then
         if not inArenaMatch then return end
-        inArenaMatch = false
         if PC.Polling and PC.Polling.Stop then PC.Polling.Stop() end
         Tracker.SetCombatEnd(GetTime())
+
+        -- Solo shuffle: snapshot the final round before the match summary,
+        -- otherwise rounds 2..N-1 are lost (only round 1 + final survived).
+        local isShuffle = Segments.IsSoloShuffle and Segments.IsSoloShuffle()
+        if isShuffle and shuffleRoundCounter > 0 and shuffleRoundHasData then
+            local finalName = "Solo Shuffle Round " .. shuffleRoundCounter
+            pcall(Segments.CreateSnapshot, finalName, "soloshuffle")
+            shuffleRoundHasData = false
+        end
+
+        inArenaMatch = false
+        shuffleRoundCounter = 0
 
         local winner = GetBattlefieldWinner and GetBattlefieldWinner()
         local playerTeam = GetBattlefieldArenaFaction and GetBattlefieldArenaFaction() or 0

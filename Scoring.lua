@@ -312,6 +312,14 @@ function Scoring.GetFullReport(guid)
     -- Compute cadenceScore from live meter data if available
     local MeterData = PC.MeterData
     local liveCadence = nil
+    -- Determine context once so we can route engagement to the right composite
+    local isArenaLive = PC.Events and PC.Events.IsInArena and PC.Events.IsInArena()
+    local function liveEngagement(g)
+        if isArenaLive and Scoring.CalcPvPCompositeScore then
+            return Scoring.CalcPvPCompositeScore(g)
+        end
+        return Scoring.CalcCompositeScore(g)
+    end
     if MeterData and MeterData.GetLiveMeterData then
         local liveMeter = MeterData.GetLiveMeterData()
         if liveMeter and liveMeter[guid] then
@@ -330,7 +338,7 @@ function Scoring.GetFullReport(guid)
                 cc = pd.ccCount or 0,
                 avoidableDamage = lm.avoidableDamage or 0,
                 deathCount = Tracker.GetDeathCount(guid),
-                activityScore = Scoring.CalcCompositeScore(guid),
+                activityScore = liveEngagement(guid),
                 role = Utils.GetRoleByGUID(guid) or "DAMAGER",
                 isEnemy = false,
             }
@@ -349,13 +357,13 @@ function Scoring.GetFullReport(guid)
                         cc = pd.ccCount or 0,
                         avoidableDamage = m.avoidableDamage or 0,
                         deathCount = Tracker.GetDeathCount(g),
-                        activityScore = Scoring.CalcCompositeScore(g),
+                        activityScore = liveEngagement(g),
                         role = Utils.GetRoleByGUID(g) or "DAMAGER",
                         isEnemy = pd.isEnemy or false,
                     }
                 end
             end
-            local isPvPCheck = PC.Events and PC.Events.IsInArena and PC.Events.IsInArena()
+            local isPvPCheck = isArenaLive
             local ct = isPvPCheck and "arena"
                 or (PC.Segments and PC.Segments.IsInMythicPlus() and "mythicplus")
                 or "raid"
