@@ -205,9 +205,13 @@ function UIQR.EncodePayload(segment)
         -- In WoW 12.0 (Midnight), the combat log may attribute the local
         -- player's healing spells to the targets they land on, polluting
         -- other players' ability maps with the reporter's own spells.
-        -- We can only trust spell data for the self player (via USCS).
+        -- The `guid == myGUID` gate alone is sufficient because we track
+        -- self spells via UNIT_SPELLCAST_SUCCEEDED, which is reliable at
+        -- any group size (M+, arena, raid). Previously we also gated on
+        -- playerCount <= 5 which silently dropped reporter abilities in
+        -- raid uploads — fixed so 25-man uploaders see their own spells.
         local abilStr = ""
-        if playerCount <= 5 and guid == myGUID then
+        if guid == myGUID then
             local topAbil = snap.topAbilities
             if topAbil then
                 local abilParts = {}
