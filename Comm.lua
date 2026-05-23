@@ -61,7 +61,11 @@ local SNAPSHOT_INTERVAL = 3.0           -- seconds between in-combat broadcasts
 local HELLO_MIN_GAP     = 30            -- min seconds between hello rebroadcasts
 local PEER_TTL          = 120           -- drop a peer after 2 min of silence
 local MAX_APM_X10       = 2500          -- cap on accepted APM (250 APM)
-local ADDON_VERSION     = "1.2.1"       -- bump on wire format change
+-- Wire-format compatibility is encoded in PROTOCOL_VERSION above. The
+-- per-build addon version advertised in the H beacon is sourced from
+-- PC.VERSION (resolved from the .toc at load time) so the sync tooltip
+-- always matches `/cad version` and the user doesn't have to bump a
+-- second constant on every release.
 
 -- ── State ──────────────────────────────────────────────────────────────
 -- peers[guid] = {
@@ -136,7 +140,7 @@ function Comm.SendHello(force)
     local now = GetTime()
     if not force and (now - lastHelloSent) < HELLO_MIN_GAP then return end
     lastHelloSent = now
-    sendRaw(string.format("%s:H:%s", PROTOCOL_VERSION, ADDON_VERSION))
+    sendRaw(string.format("%s:H:%s", PROTOCOL_VERSION, tostring(PC.VERSION or "0")))
     dprint("hello sent")
 end
 
@@ -286,10 +290,15 @@ local function onAddonMessage(prefix, msg, _channel, sender)
     -- ourselves as a peer ("2/2 sync" when solo with the addon).
     local selfGuid = UnitGUID("player")
     if selfGuid and guid == selfGuid then return end
-    -- Also defend against the name-fallback case (sender == our own name).
+    -- Name-fallback case: UnitGUID(sender) can return nil for cross-realm
+    -- raid members (and occasionally for ourselves on the echo path), in
+    -- which case `guid` is just the sender string. Match the bare-name OR
+    -- "Name-Realm" form against our own name and bail unconditionally —
+    -- the previous inner guard left a hole that allowed self-echo through
+    -- and inflated the sync count ("2/25" when solo with the addon).
     local selfName = UnitName("player")
     if selfName and (sender == selfName or sender:match("^([^%-]+)") == selfName) then
-        if not selfGuid or guid == selfName then return end
+        return
     end
 
     local peer = peers[guid]

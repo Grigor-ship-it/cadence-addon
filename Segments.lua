@@ -294,6 +294,9 @@ function Segments.OnEncounterEnd(encounterID, encounterName, difficultyID, group
     local name = (encounterName or "Boss") .. suffix
 
     local segment = Segments.CreateSnapshot(name, "boss")
+    -- Tag explicit success so downstream gates (QR share, summary chrome)
+    -- can distinguish kills from wipes without parsing the name suffix.
+    if segment then segment.success = (success == 1) end
     -- Do NOT reset tracker here — data stays visible on the meter until
     -- the next combat starts (PLAYER_REGEN_DISABLED handles the reset).
     currentSegmentName = "Current"

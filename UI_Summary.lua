@@ -373,15 +373,26 @@ local function CreateSummaryFrame()
     f.shareBtn.text:SetTextColor(C_GOLD_BRIGHT[1], C_GOLD_BRIGHT[2], C_GOLD_BRIGHT[3])
     f.shareBtn.text:SetText("Share QR")
     f.shareBtn:SetScript("OnClick", function()
-        if currentSegment and PC.UI_QR and PC.UI_QR.ShowForSegment then
-            PC.UI_QR.ShowForSegment(currentSegment)
+        if not currentSegment then return end
+        if not (PC.UI_QR and PC.UI_QR.ShowForSegment) then return end
+        -- Defensive: re-check the gate at click time in case the segment
+        -- was mutated after Populate (e.g. deferred enrichment).
+        if Summary.IsShareable and not Summary.IsShareable(currentSegment) then
+            return
         end
+        PC.UI_QR.ShowForSegment(currentSegment)
     end)
     f.shareBtn:SetScript("OnEnter", function(self)
         self:SetBackdropColor(C_GOLD_DIM[1], C_GOLD_DIM[2], C_GOLD_DIM[3], 0.60)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText("|cffFFD666Share QR Code|r")
-        GameTooltip:AddLine("Generate a scannable QR code to\nupload this encounter to cadencewow.com", 0.72, 0.72, 0.80, true)
+        if self._disabledReason == "wipe" then
+            GameTooltip:AddLine("Wipes can't be shared — only kills upload to cadencewow.com.", 1, 0.55, 0.55, true)
+        elseif self._disabledReason == "follower dungeon" then
+            GameTooltip:AddLine("Follower dungeons can't be shared — bot groups don't count for rankings.", 1, 0.55, 0.55, true)
+        else
+            GameTooltip:AddLine("Generate a scannable QR code to\nupload this encounter to cadencewow.com", 0.72, 0.72, 0.80, true)
+        end
         GameTooltip:Show()
     end)
     f.shareBtn:SetScript("OnLeave", function(self)
@@ -618,6 +629,41 @@ local function AddStatLine(parent, yOffset, label, value, r, g, b)
 end
 
 ---------------------------------------------------------------------------
+-- Share gate: kills only, and never in follower dungeons (difficulty 205).
+-- The backend uses leaderboard data, so wipes and bot-filled runs would
+-- pollute the rankings.
+---------------------------------------------------------------------------
+function Summary.IsShareable(segment)
+    if not segment then return false, "no segment" end
+    -- Wipe check: prefer explicit success flag, fall back to name suffix
+    -- for older segments created before the flag was added.
+    if segment.success == false then return false, "wipe" end
+    if segment.name and segment.name:find("%(Wipe%)") then
+        return false, "wipe"
+    end
+    -- Follower dungeon: Blizzard difficultyID 205. Group is bots, scores
+    -- are not representative and shouldn't appear in rankings.
+    if segment.difficultyID == 205 then
+        return false, "follower dungeon"
+    end
+    return true
+end
+
+local function ApplyShareGate(f, segment)
+    if not (f and f.shareBtn) then return end
+    local ok, reason = Summary.IsShareable(segment)
+    if ok then
+        f.shareBtn:Enable()
+        f.shareBtn:SetAlpha(1.0)
+        f.shareBtn._disabledReason = nil
+    else
+        f.shareBtn:Disable()
+        f.shareBtn:SetAlpha(0.45)
+        f.shareBtn._disabledReason = reason
+    end
+end
+
+---------------------------------------------------------------------------
 -- Populate the summary with segment data
 ---------------------------------------------------------------------------
 function Summary.Populate(segment)
@@ -629,6 +675,7 @@ function Summary.Populate(segment)
 
     -- Store segment for QR sharing
     currentSegment = segment
+    ApplyShareGate(f, segment)
 
     local players = BuildPlayerList(segment)
     if #players == 0 then

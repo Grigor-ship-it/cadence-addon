@@ -535,6 +535,23 @@ end
 function UIQR.ShowForSegment(segment)
     if not segment then return end
 
+    -- Server-side gate: wipes and follower dungeons must never reach the
+    -- backend. Mirrors UI_Summary.IsShareable() so /cad qr and any future
+    -- entry point can't bypass the share button's disabled state.
+    if PC.UI_Summary and PC.UI_Summary.IsShareable then
+        local ok, reason = PC.UI_Summary.IsShareable(segment)
+        if not ok then
+            if reason == "wipe" then
+                print("|cffffffffCad|r|cffFFD666ence|r: QR sharing is disabled for wipes.")
+            elseif reason == "follower dungeon" then
+                print("|cffffffffCad|r|cffFFD666ence|r: QR sharing is disabled in follower dungeons.")
+            else
+                print("|cffffffffCad|r|cffFFD666ence|r: This segment can't be shared (" .. tostring(reason) .. ").")
+            end
+            return
+        end
+    end
+
     local url = UIQR.BuildURL(segment)
     if not url then
         print("|cffffffffCad|r|cffFFD666ence|r: Could not generate QR code — no player data.")
