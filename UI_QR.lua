@@ -175,8 +175,20 @@ function UIQR.EncodePayload(segment)
         -- Use realm-qualified short name: "Name~Realm" for cross-realm players
         -- Strip payload delimiter chars but preserve UTF-8 accented characters (î, ä, ü, é, etc.)
         local pName = utf8sub((snap.name or "Unknown"):gsub("[|_.~:+]", ""), 20)
-        -- Per-player realm: nil means same-realm as reporter; non-nil for cross-realm
+        -- Per-player realm: nil means same-realm as reporter; non-nil for cross-realm.
+        -- Resolve the realm from GUID first because UnitName(token) returns the
+        -- realm with spaces stripped for cross-realm units ("SteamwheedleCartel"
+        -- instead of "Steamwheedle Cartel"), which then yields a broken slug
+        -- ("steamwheedlecartel") that 404s on Blizzard's character profile API.
+        -- GetPlayerInfoByGUID preserves the spaces so our %s+ -> '-' rule below
+        -- produces the correct URL slug ("steamwheedle-cartel").
         local pRealm = snap.realm
+        if guid and GetPlayerInfoByGUID then
+            local ok, _, _, _, _, _, _, realmFromGUID = pcall(GetPlayerInfoByGUID, guid)
+            if ok and realmFromGUID and realmFromGUID ~= "" then
+                pRealm = realmFromGUID
+            end
+        end
         if pRealm and pRealm ~= "" then
             pRealm = utf8sub(pRealm:gsub("[|_.~:+]", ""):gsub("%s+", "-"), 24)
             pName = pName .. "~" .. pRealm
