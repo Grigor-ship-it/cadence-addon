@@ -45,6 +45,12 @@ local combatEndTimer      = nil   -- cancellable REGEN_ENABLED debounce
 local segmentDirty        = false -- tracker has unsaved combat data
 local shuffleRoundCounter = 0     -- solo shuffle: increments per round
 local shuffleRoundHasData = false -- current round has tracked data to snapshot
+local shuffleLastRegenEnabledAt = 0 -- GetTime() of last REGEN_ENABLED in arena.
+-- Re-entering combat within SHUFFLE_REGEN_GRACE seconds is treated as the
+-- same round continuing (feign death, vanish, shadowmeld, restealth etc.
+-- briefly drop combat then re-enter). Real round transitions in solo
+-- shuffle have a ~15s countdown between rounds, so 8s is safe.
+local SHUFFLE_REGEN_GRACE = 8
 
 -- Roster
 local rosterGUIDs      = {}  -- [guid] = true
@@ -497,6 +503,24 @@ local function OnEvent(self, event, ...)
             local isShuffle = Segments.IsSoloShuffle and Segments.IsSoloShuffle()
 
             if isShuffle then
+                -- Combat-drop debounce: if the previous REGEN_ENABLED was
+                -- within SHUFFLE_REGEN_GRACE seconds, treat this as the
+                -- same round continuing (feign/vanish/shadowmeld/restealth
+                -- temporarily dropped us out of combat). Don't snapshot,
+                -- don't increment, don't reset trackers.
+                if shuffleRoundCounter > 0
+                   and shuffleLastRegenEnabledAt > 0
+                   and (now - shuffleLastRegenEnabledAt) < SHUFFLE_REGEN_GRACE then
+                    if debugMode then
+                        print(string.format(
+                            "|cffFFD666PC Debug|r: Solo Shuffle round %d combat resumed (%.1fs gap, < %ds grace) -- continuing same round",
+                            shuffleRoundCounter, now - shuffleLastRegenEnabledAt, SHUFFLE_REGEN_GRACE))
+                    end
+                    Tracker.SetCombatStart(now)
+                    if PC.Polling and PC.Polling.Start then PC.Polling.Start() end
+                    return
+                end
+
                 -- Per-round handling: snapshot previous round (if any data),
                 -- then reset trackers for the new round.
                 if shuffleRoundCounter > 0 and shuffleRoundHasData then
@@ -565,6 +589,8 @@ local function OnEvent(self, event, ...)
             -- snapshot is created on the next PLAYER_REGEN_DISABLED (next
             -- round start) or in PVP_MATCH_COMPLETE (final round).
             Tracker.SetCombatEnd(GetTime())
+            -- Stamp for the combat-drop debounce on the next REGEN_DISABLED.
+            shuffleLastRegenEnabledAt = GetTime()
             -- Mark that this round has data worth snapshotting.
             for _, pd in pairs(Tracker.GetAllPlayerData()) do
                 if pd.actionCount and pd.actionCount > 0 then
@@ -714,6 +740,7 @@ local function OnEvent(self, event, ...)
                 -- Fresh arena instance: reset per-match state.
                 shuffleRoundCounter = 0
                 shuffleRoundHasData = false
+                shuffleLastRegenEnabledAt = 0
                 arenaMatchSetupDone = false
                 trashPullCounter = 0
             end
@@ -741,6 +768,7 @@ local function OnEvent(self, event, ...)
                 inArenaMatch = false
                 arenaMatchSetupDone = false
                 shuffleRoundCounter = 0
+                shuffleLastRegenEnabledAt = 0
             end
             if Segments.IsInDungeon() and not Segments.IsInMythicPlus() then
                 if Segments.IsAccumulating() then
@@ -774,6 +802,7 @@ local function OnEvent(self, event, ...)
         arenaMatchSetupDone = true
         shuffleRoundCounter = 0
         shuffleRoundHasData = false
+        shuffleLastRegenEnabledAt = 0
 
         local _, _, diffID = GetInstanceInfo()
         local isShuffle = (diffID == 231 or (C_PvP and C_PvP.IsSoloShuffle and C_PvP.IsSoloShuffle()))

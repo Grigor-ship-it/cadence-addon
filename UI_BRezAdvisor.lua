@@ -128,10 +128,17 @@ local function EnsureBadge(frame)
     local b = frame.cadenceBRez
     if b then return b end
 
-    b = CreateFrame("Frame", nil, frame)
+    -- IMPORTANT: parent the badge to UIParent, NOT to `frame` (which is a
+    -- secure CompactRaidFrame). Parenting a non-secure child to a secure
+    -- frame and then calling SetFrameStrata/SetFrameLevel on it taints the
+    -- parent's secure attribute chain. The next time anything secure reads
+    -- from that chain (e.g. the unit popup menu calling CheckInteractDistance
+    -- when the user right-clicks the raid frame), Blizzard blocks the call
+    -- with ADDON_ACTION_BLOCKED. Anchoring via SetPoint is read-only so
+    -- it's safe to reference the secure frame for positioning.
+    b = CreateFrame("Frame", nil, UIParent)
     b:SetSize(48, 16)
     b:SetFrameStrata("HIGH")
-    b:SetFrameLevel((frame:GetFrameLevel() or 1) + 5)
     b:SetPoint("CENTER", frame, "CENTER", 0, 0)
 
     b.bg = b:CreateTexture(nil, "BACKGROUND")
@@ -146,6 +153,17 @@ local function EnsureBadge(frame)
     b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     b.text:SetPoint("CENTER", b, "CENTER", 0, 0)
     b.text:SetTextColor(1, 1, 1, 1)
+
+    -- Hide the badge when the raid frame is hidden/recycled so detached
+    -- badges don't linger on screen after the frame goes away. Reading
+    -- HookScript on a secure frame is read-only and does not taint.
+    b._ownerFrame = frame
+    if not frame.__cadenceBRezHooked then
+        frame:HookScript("OnHide", function(self)
+            if self.cadenceBRez then self.cadenceBRez:Hide() end
+        end)
+        frame.__cadenceBRezHooked = true
+    end
 
     b:Hide()
     frame.cadenceBRez = b
