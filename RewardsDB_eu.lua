@@ -1,17 +1,18 @@
 -- ============================================================================
 -- Cadence Rewards Database — EU Region
--- Generated: 2026-05-26T07:03:01.604Z
--- Version: v202605260600
+-- Generated: 2026-05-27T07:17:06.855Z
+-- Version: v202605270600
 -- DO NOT EDIT — this file is auto-generated daily by the Cadence server.
 -- Keep your addon updated via CurseForge / WoWUp and this refreshes automatically.
 -- ============================================================================
 
 CADENCE_REWARDS_REGION = "eu"
-CADENCE_REWARDS_GENERATED = 1779778981
+CADENCE_REWARDS_GENERATED = 1779866226
 CADENCE_REWARDS_VERSION = 1
 
 CadenceRewardsDB = {
-["Tamako-Kult der Verdammten"]={s=98.3,c=2,n=9,u="2026-05-25"},
-["Faramirg-Antonidas"]={s=96.5,c=2,n=13,u="2026-05-25"},
-["Frior-Kult der Verdammten"]={s=93.0,c=2,n=6,u="2026-05-25"},
+["Tamako-Kult der Verdammten"]={s=98.4,c=2,n=10,u="2026-05-26"},
+["Ventrix-Kult der Verdammten"]={s=98.0,c=2,n=7,u="2026-05-26"},
+["Faramirg-Antonidas"]={s=96.5,c=2,n=16,u="2026-05-26"},
+["Frior-Kult der Verdammten"]={s=93.3,c=2,n=8,u="2026-05-26"},
 }
