@@ -129,6 +129,48 @@ function LFG.GetBadge(name, realm, category)
 end
 
 ----------------------------------------------------------------------
+-- Secret-string guard
+--
+-- Blizzard introduced a "SecureString" / "secret string" type for some
+-- LFG API fields (e.g. `leaderName` for cross-faction or privacy-filtered
+-- listings). Calling string methods like :match, :find, or .. on one of
+-- these taints us, and the next secure call from the same execution
+-- chain (right-click → OpenContextMenu → CheckInteractDistance) gets
+-- blocked with ADDON_ACTION_BLOCKED.
+--
+-- type() returns "string" for both regular and secret strings, so we
+-- use pcall on a trivial format which fails cleanly on the secret type
+-- without tainting the caller. Returns a plain Lua string if the input
+-- was a normal string, nil otherwise.
+----------------------------------------------------------------------
+local function safePlainString(val)
+    if val == nil then return nil end
+    if type(val) ~= "string" then return nil end
+    local ok, copy = pcall(string.format, "%s", val)
+    if not ok or type(copy) ~= "string" then return nil end
+    -- Round-trip via string.char to detach from any secure provenance.
+    local ok2, plain = pcall(function()
+        local len = #copy
+        if len == 0 then return "" end
+        local bytes = { string.byte(copy, 1, len) }
+        return string.char(unpack(bytes))
+    end)
+    if not ok2 or type(plain) ~= "string" then return nil end
+    return plain
+end
+
+-- Split "Name-Realm" into (name, realm) without touching the original
+-- string with secure-tainted methods. Returns nil if input is secret or
+-- otherwise unusable.
+local function splitNameRealm(raw)
+    local plain = safePlainString(raw)
+    if not plain or plain == "" then return nil end
+    local lname, lrealm = plain:match("^(.+)%-(.+)$")
+    if not lname then return plain, nil end
+    return lname, lrealm
+end
+
+----------------------------------------------------------------------
 -- Badge FontString helpers
 --
 -- Used for search-result rows where there's room to anchor a small
@@ -184,13 +226,12 @@ local function decorateSearchEntry(frame, resultID)
     local info = C_LFGList.GetSearchResultInfo(resultID)
     if not info then return end
 
-    local leaderFull = info.leaderName or ""
-    local lname, lrealm = leaderFull:match("^(.+)%-(.+)$")
-    if not lname then
-        lname  = leaderFull
-        lrealm = nil
-    end
-    if lname == "" then return end
+    -- info.leaderName can be a Blizzard "secret string" (cross-faction /
+    -- privacy-filtered listings). Calling :match on one taints us and
+    -- breaks every secure click handler in this frame's chain. Use the
+    -- safe splitter which returns nil on secret strings.
+    local lname, lrealm = splitNameRealm(info.leaderName)
+    if not lname or lname == "" then return end
 
     local category = categoryForActivity(info.activityID)
     local badge    = LFG.GetBadge(lname, lrealm, category)
@@ -230,13 +271,11 @@ local function decorateApplicantMember(memberFrame, applicantID, memberIdx)
     if not C_LFGList or not C_LFGList.GetApplicantMemberInfo then return end
 
     -- IMPORTANT: GetApplicantMemberInfo returns a multi-value tuple, not a
-    -- table. The first return is the player's full "Name-Realm" string.
+    -- table. The first return is the player's full "Name-Realm" string,
+    -- which can be a Blizzard secret string in cross-faction listings.
     local name = C_LFGList.GetApplicantMemberInfo(applicantID, memberIdx)
-    if not name or name == "" then return end
-
-    local lname, lrealm = name:match("^(.+)%-(.+)$")
-    if not lname then lname, lrealm = name, nil end
-    if lname == "" then return end
+    local lname, lrealm = splitNameRealm(name)
+    if not lname or lname == "" then return end
 
     local badge = LFG.GetBadge(lname, lrealm, nil)
     if not badge then return end
@@ -313,10 +352,8 @@ local function installTooltipHook()
         if not enabled() or not tooltip or not resultID then return end
         local info = C_LFGList.GetSearchResultInfo(resultID)
         if not info then return end
-        local leaderFull = info.leaderName or ""
-        local lname, lrealm = leaderFull:match("^(.+)%-(.+)$")
-        if not lname then lname, lrealm = leaderFull, nil end
-        if lname == "" then return end
+        local lname, lrealm = splitNameRealm(info.leaderName)
+        if not lname or lname == "" then return end
 
         local category = categoryForActivity(info.activityID)
         local key   = buildKey(lname, lrealm)
@@ -357,9 +394,8 @@ local function installApplicantTooltipHook()
         if not applicantID then return end
 
         local name = C_LFGList.GetApplicantMemberInfo(applicantID, memberIdx)
-        if not name or name == "" then return end
-        local lname, lrealm = name:match("^(.+)%-(.+)$")
-        if not lname then lname, lrealm = name, nil end
+        local lname, lrealm = splitNameRealm(name)
+        if not lname or lname == "" then return end
 
         local key   = buildKey(lname, lrealm)
         local entry = key and CadenceScoresDB and CadenceScoresDB[key]
