@@ -170,7 +170,24 @@ local function RefreshRosterCache()
                         local name, realm = UnitName(token)
                         local _, class    = UnitClass(token)
                         Utils.CacheUnit(g, name, class, realm)
-                        Utils.SetRoleByGUID(g, "DAMAGER")
+
+                        -- Resolve enemy role from arena spec API. This is
+                        -- what lets the Cadence score compare the player
+                        -- healer against the enemy healer in Solo Shuffle
+                        -- (otherwise every enemy defaults to DAMAGER and
+                        -- the HPS comparison pool only contains the player
+                        -- themselves -> ratio always 1.0).
+                        local role = "DAMAGER"
+                        if GetArenaOpponentSpec then
+                            local specID = GetArenaOpponentSpec(i)
+                            if specID and specID > 0 and GetSpecializationRoleByID then
+                                local r = GetSpecializationRoleByID(specID)
+                                if r == "HEALER" or r == "TANK" or r == "DAMAGER" then
+                                    role = r
+                                end
+                            end
+                        end
+                        Utils.SetRoleByGUID(g, role)
                     end)
                     Tracker.EnsurePlayer(g)
                     local pd = Tracker.GetPlayerData(g)
@@ -503,44 +520,21 @@ local function OnEvent(self, event, ...)
             local isShuffle = Segments.IsSoloShuffle and Segments.IsSoloShuffle()
 
             if isShuffle then
-                -- Combat-drop debounce: if the previous REGEN_ENABLED was
-                -- within SHUFFLE_REGEN_GRACE seconds, treat this as the
-                -- same round continuing (feign/vanish/shadowmeld/restealth
-                -- temporarily dropped us out of combat). Don't snapshot,
-                -- don't increment, don't reset trackers.
-                if shuffleRoundCounter > 0
-                   and shuffleLastRegenEnabledAt > 0
-                   and (now - shuffleLastRegenEnabledAt) < SHUFFLE_REGEN_GRACE then
-                    if debugMode then
-                        print(string.format(
-                            "|cffFFD666PC Debug|r: Solo Shuffle round %d combat resumed (%.1fs gap, < %ds grace) -- continuing same round",
-                            shuffleRoundCounter, now - shuffleLastRegenEnabledAt, SHUFFLE_REGEN_GRACE))
-                    end
-                    Tracker.SetCombatStart(now)
-                    if PC.Polling and PC.Polling.Start then PC.Polling.Start() end
-                    return
-                end
-
-                -- Per-round handling: snapshot previous round (if any data),
-                -- then reset trackers for the new round.
-                if shuffleRoundCounter > 0 and shuffleRoundHasData then
-                    Tracker.SetCombatEnd(now)
-                    local prevName = "Solo Shuffle Round " .. shuffleRoundCounter
-                    pcall(Segments.CreateSnapshot, prevName, "soloshuffle")
-                end
-
+                -- Solo Shuffle is treated as ONE segment for the entire
+                -- 6-round match: APM, uptime, damage/healing, etc. all
+                -- accumulate across rounds. Round transitions are not
+                -- separate segments; we just keep tracking through them.
+                --
+                -- Between rounds the game briefly drops you out of combat
+                -- (~15s countdown), and combat-drops mid-round happen too
+                -- (feign/vanish/shadowmeld/restealth). In both cases we
+                -- simply re-enter combat on the same tracker state.
+                --
+                -- Refresh the roster (teammates rotate between rounds)
+                -- and resume combat without resetting any counters.
                 shuffleRoundCounter = shuffleRoundCounter + 1
-                shuffleRoundHasData = false
+                shuffleRoundHasData = true
 
-                -- Wipe per-round state so the new round starts clean.
-                Utils.WipeTable(knownDead)
-                Utils.WipeTable(pollActivePerGuid)
-                Utils.WipeTable(lastEventTick)
-                Tracker.ResetAll()
-                if PC.Polling and PC.Polling.Reset then PC.Polling.Reset() end
-
-                -- Refresh roster (shuffled teammates may have changed) and
-                -- ensure every roster member exists in the tracker.
                 RefreshRosterCache()
                 RegisterUnitFlagsPools()
                 RegisterPartyUnitEvents()
@@ -548,11 +542,16 @@ local function OnEvent(self, event, ...)
                 for guid in pairs(rosterGUIDs) do Tracker.EnsurePlayer(guid) end
 
                 Tracker.SetCombatStart(now)
-                segmentDirty = true
+                if PC.Polling and PC.Polling.Start then PC.Polling.Start() end
 
                 if debugMode then
-                    print("|cffFFD666PC Debug|r: Solo Shuffle Round " .. shuffleRoundCounter .. " START")
+                    local gap = (shuffleLastRegenEnabledAt > 0)
+                        and (now - shuffleLastRegenEnabledAt) or 0
+                    print(string.format(
+                        "|cffFFD666PC Debug|r: Solo Shuffle round %d combat resumed (%.1fs gap) -- accumulating into single match segment",
+                        shuffleRoundCounter, gap))
                 end
+                return
             end
 
             if PC.Polling and PC.Polling.Start then PC.Polling.Start() end
@@ -754,12 +753,10 @@ local function OnEvent(self, event, ...)
                 -- in solo shuffle, then build the match summary.
                 if PC.Polling and PC.Polling.Stop then PC.Polling.Stop() end
                 Tracker.SetCombatEnd(GetTime())
-                local isShuffle = Segments.IsSoloShuffle and Segments.IsSoloShuffle()
-                if isShuffle and shuffleRoundCounter > 0 and shuffleRoundHasData then
-                    local finalName = "Solo Shuffle Round " .. shuffleRoundCounter
-                    pcall(Segments.CreateSnapshot, finalName, "soloshuffle")
-                    shuffleRoundHasData = false
-                end
+                -- Solo Shuffle: no per-round snapshot. The whole match is
+                -- a single segment created below by OnArenaEnd, with all
+                -- 6 rounds of APM / uptime / damage / healing accumulated.
+                shuffleRoundHasData = false
                 local winner = GetBattlefieldWinner and GetBattlefieldWinner()
                 local playerTeam = GetBattlefieldArenaFaction and GetBattlefieldArenaFaction() or 0
                 local didWin = (winner ~= nil and winner == playerTeam)

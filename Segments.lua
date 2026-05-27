@@ -737,22 +737,16 @@ end
 -- Arena / Solo Shuffle support
 ---------------------------------------------------------------------------
 function Segments.OnArenaStart(isShuffleRound)
-    -- Solo shuffle: snapshot the previous round before resetting
+    -- Solo Shuffle: we treat the entire 6-round match as ONE segment.
+    -- If we're already inside an active shuffle, subsequent PVP_MATCH_ACTIVE
+    -- pulses (between-round transitions) are no-ops here — we keep the
+    -- accumulated tracker data and let Events.lua resume combat tracking.
     if isSoloShuffle and isShuffleRound then
-        local hasData = false
-        for _, pd in pairs(Tracker.GetAllPlayerData()) do
-            if pd.actionCount > 0 then hasData = true; break end
-        end
-        if hasData then
-            Tracker.SetCombatEnd(GetTime())
-            Segments.CreateSnapshot("Solo Shuffle Round", "soloshuffle")
-        end
+        return
     end
 
-    -- Fresh arena: wipe previous + tracker
-    if not isSoloShuffle or isShuffleRound then
-        Tracker.ResetAll()
-    end
+    -- Fresh arena (first round of shuffle, or any 2v2/3v3): wipe tracker.
+    Tracker.ResetAll()
 
     local _, _, diffID, _, _, _, _, instID = GetInstanceInfo()
     currentDifficultyID = diffID

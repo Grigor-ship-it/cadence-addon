@@ -584,7 +584,7 @@ end
 -- Compute group-level stats from allPlayers table.
 -- Returns a stats table used by both CalcCadenceLiveScore and Breakdown.
 ---------------------------------------------------------------------------
-local function ComputeGroupStats(allPlayers)
+local function ComputeGroupStats(allPlayers, contentType)
     local groupDps, groupHps, groupUtility, groupAvoid = 0, 0, 0, 0
     local groupInterrupts, groupDispels, groupExternals = 0, 0, 0
     local groupRaidCds, groupSupport, groupCC = 0, 0, 0
@@ -592,24 +592,25 @@ local function ComputeGroupStats(allPlayers)
     local groupUtilityTotal = 0  -- all utility actions combined
     local dpsCount, hpsCount, count = 0, 0, 0
 
+    -- Arena (incl. Solo Shuffle): include enemy players in the throughput
+    -- comparison pools. In Solo Shuffle the player's "team" rotates each
+    -- round and there's only ever ONE healer on each side, so without the
+    -- enemy healer's HPS we'd be comparing the player healer against
+    -- themselves (ratio = 1.0, score saturates regardless of performance).
+    -- Including enemies gives us a real peer pool for both DPS and HPS.
+    -- Utility / avoidable damage / death counts stay ally-only (we don't
+    -- get rewarded for what the enemy does or fail because they died).
+    local includeEnemyOutput = (contentType == "arena")
+
     if allPlayers then
         for _, p in pairs(allPlayers) do
-            if not p.isEnemy then
-                count = count + 1
-                local pDps = p.dps or 0
-                local pHps = p.hps or 0
-                local role = p.role
-                -- Healing/damage averages must be computed against players in
-                -- that role, not anyone whose meter is non-zero. Otherwise
-                -- passive sources (leech, atonement, healthstones, vampiric
-                -- embrace, ret WoG, etc.) drag avgHps down by 3-5x and DPS
-                -- output from healers (atonement, holy fire) drags avgDps
-                -- down — both inflate ratios so everyone saturates the curve.
-                --
-                -- Hybrid healing tanks (Blood DK, Brewmaster) generate real
-                -- HPS via Death Strike / Stagger, but it's self-healing only
-                -- and not what we mean by "group healer throughput". Keep
-                -- them out of avgHps.
+            local pDps = p.dps or 0
+            local pHps = p.hps or 0
+            local role = p.role
+
+            -- Throughput pools: include enemies in arena so the player
+            -- healer/DPS has a real peer to compare against.
+            if (not p.isEnemy) or includeEnemyOutput then
                 if role == "DAMAGER" and pDps > 0 then
                     dpsCount = dpsCount + 1
                     groupDps = groupDps + pDps
@@ -618,6 +619,11 @@ local function ComputeGroupStats(allPlayers)
                     hpsCount = hpsCount + 1
                     groupHps = groupHps + pHps
                 end
+            end
+
+            -- Utility / avoidable / death pools stay ally-only.
+            if not p.isEnemy then
+                count = count + 1
                 local pInt = p.interrupts or 0
                 local pDisp = p.dispels or 0
                 local pExt = p.externals or 0
@@ -792,7 +798,7 @@ function Scoring.CalcCadenceLiveScore(snap, allPlayers, contentType, context)
     end
 
     -- Group stats + activation + effective weights
-    local gs = ComputeGroupStats(allPlayers)
+    local gs = ComputeGroupStats(allPlayers, contentType)
     local utilityTier = ResolveUtilityTier(contentType, context)
     local active = GetActiveMetrics(gs, utilityTier)
     local w = BuildEffectiveWeights(baseW, active)
@@ -836,7 +842,7 @@ function Scoring.CalcCadenceBreakdown(snap, allPlayers, contentType, context)
     end
 
     -- Group stats + activation + effective weights
-    local gs = ComputeGroupStats(allPlayers)
+    local gs = ComputeGroupStats(allPlayers, contentType)
     local utilityTier = ResolveUtilityTier(contentType, context)
     local active = GetActiveMetrics(gs, utilityTier)
     local w = BuildEffectiveWeights(baseW, active)
