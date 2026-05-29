@@ -21,9 +21,14 @@ jobs:
         run: |
           for region in us eu kr tw; do
             suffix=$([ "$region" = "us" ] && echo "" || echo "_$region")
+
             echo "Fetching RewardsDB${suffix}.lua..."
             curl -sf "https://api.cadencewow.com/api/v1/rewards/export?region=$region" \
               -o "RewardsDB${suffix}.lua" || echo "WARN: rewards $region failed"
+
+            echo "Fetching ScoresDB${suffix}.lua..."
+            curl -sf "https://api.cadencewow.com/api/v1/scores/export?region=$region" \
+              -o "ScoresDB${suffix}.lua" || echo "WARN: scores $region failed"
           done
 
       - name: Check for changes
