@@ -23,7 +23,14 @@ Comm.lua
 QREncode.lua
 RewardTiers.lua
 RewardsDB.lua
+RewardsDB_eu.lua
+RewardsDB_kr.lua
+RewardsDB_tw.lua
 ScoresDB.lua
+ScoresDB_eu.lua
+ScoresDB_kr.lua
+ScoresDB_tw.lua
+RegionalData.lua
 UI_Meter.lua
 UI_Tooltip.lua
 UI_RewardTooltip.lua
