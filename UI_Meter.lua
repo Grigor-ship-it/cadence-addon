@@ -52,6 +52,9 @@ local STATUS_THRESHOLDS = {
 }
 
 local function GetStatusLabel(score)
+    if score == nil then
+        return "No data", 0.55, 0.55, 0.55
+    end
     for _, t in ipairs(STATUS_THRESHOLDS) do
         if score >= t.min then
             return t.label, t.r, t.g, t.b
@@ -458,9 +461,12 @@ local function BuildSortedPlayerList()
         end
     end
 
-    -- Sort by score
+    -- Sort by score (nil scores = "no meter data" go to the bottom)
     table.sort(sortedPlayers, function(a, b)
-        if a.score ~= b.score then return a.score > b.score end
+        local aHas = a.score ~= nil
+        local bHas = b.score ~= nil
+        if aHas ~= bHas then return aHas end
+        if aHas and a.score ~= b.score then return a.score > b.score end
         -- Tiebreaker: higher throughput (role-aware) ranks higher.
         -- Defensive coercion: fields can occasionally be nil OR a tainted
         -- secret value that throws on direct comparison. Run them through
@@ -602,7 +608,7 @@ function UI.RefreshBars()
     -- Find the highest score for bar width scaling
     local topScore = 0
     for _, p in ipairs(sortedPlayers) do
-        if p.score > topScore then topScore = p.score end
+        if p.score and p.score > topScore then topScore = p.score end
     end
     if topScore <= 0 then topScore = 1 end
 
@@ -664,7 +670,7 @@ function UI.RefreshBars()
         row.apmText:SetText(Utils.FormatAPM(p.apm))
 
         -- Bar width proportional to score (reduced alpha for subtlety)
-        local barFrac = p.score / topScore
+        local barFrac = (p.score or 0) / topScore
         row.bar:SetWidth(math.max(barMaxWidth * barFrac, 1))
         row.bar:SetVertexColor(r, g, b, 0.35)
 

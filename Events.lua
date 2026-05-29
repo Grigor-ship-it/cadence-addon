@@ -41,6 +41,7 @@ local lastInstanceID      = nil
 -- That gives us a stable flag for the full match duration.
 local inArenaMatch        = false
 local arenaMatchSetupDone = false -- first PVP_MATCH_ACTIVE since zone-entry
+local arenaRoundLive      = false -- gated by PVP_MATCH_STATE_CHANGED → Engaged
 local combatEndTimer      = nil   -- cancellable REGEN_ENABLED debounce
 local segmentDirty        = false -- tracker has unsaved combat data
 local shuffleRoundCounter = 0     -- solo shuffle: increments per round
@@ -493,6 +494,71 @@ local function StartCombatTracking(now, freshPull)
 end
 
 ---------------------------------------------------------------------------
+-- Arena round lifecycle.
+--
+-- A "round" here means: an actual live combat phase of an arena match.
+-- 2v2/3v3 have one. Solo Shuffle has six (all rolled into a single
+-- segment, but each one is its own start/end for combat-time accounting).
+--
+-- The deterministic signal for "round just went live" in 12.0 is
+-- PVP_MATCH_STATE_CHANGED → Enum.PvPMatchState.Engaged (gate-drop).
+-- PLAYER_REGEN_DISABLED used to be the trigger, but that fired during the
+-- pre-game lobby and made combat duration include strategy / talent /
+-- ready-up time, which inflated denominators and dragged APM/uptime down.
+---------------------------------------------------------------------------
+local function BeginArenaRound(now, source)
+    if arenaRoundLive then return end
+    arenaRoundLive = true
+
+    local isShuffle = Segments.IsSoloShuffle and Segments.IsSoloShuffle()
+    if isShuffle then
+        shuffleRoundCounter = shuffleRoundCounter + 1
+        shuffleRoundHasData = true
+    end
+
+    -- Roster can rotate (shuffle) or just need its first seed (2v2/3v3).
+    RefreshRosterCache()
+    RegisterUnitFlagsPools()
+    RegisterPartyUnitEvents()
+    CacheAllRosterInfo()
+    for guid in pairs(rosterGUIDs) do Tracker.EnsurePlayer(guid) end
+
+    Tracker.SetCombatStart(now)
+    if PC.Polling and PC.Polling.Start then PC.Polling.Start() end
+
+    if debugMode then
+        if isShuffle then
+            local gap = (shuffleLastRegenEnabledAt > 0)
+                and (now - shuffleLastRegenEnabledAt) or 0
+            print(string.format(
+                "|cffFFD666PC Debug|r: Solo Shuffle round %d START (source=%s, %.1fs gap)",
+                shuffleRoundCounter, source or "?", gap))
+        else
+            print("|cffFFD666PC Debug|r: Arena round START (source=" .. (source or "?") .. ")")
+        end
+    end
+end
+
+local function EndArenaRound(now, source)
+    if not arenaRoundLive then return end
+    arenaRoundLive = false
+
+    Tracker.SetCombatEnd(now)
+    shuffleLastRegenEnabledAt = now
+    if PC.Polling and PC.Polling.Stop then PC.Polling.Stop() end
+
+    for _, pd in pairs(Tracker.GetAllPlayerData()) do
+        if (pd.actionCount or 0) > 0 then
+            shuffleRoundHasData = true
+            break
+        end
+    end
+
+    if debugMode then
+        print("|cffFFD666PC Debug|r: Arena round END (source=" .. (source or "?") .. ")")
+    end
+end
+---------------------------------------------------------------------------
 -- Main event handler
 ---------------------------------------------------------------------------
 local function OnEvent(self, event, ...)
@@ -516,42 +582,30 @@ local function OnEvent(self, event, ...)
         if combatEndTimer then combatEndTimer:Cancel(); combatEndTimer = nil end
 
         if inArenaMatch then
-            local now = GetTime()
-            local isShuffle = Segments.IsSoloShuffle and Segments.IsSoloShuffle()
-
-            if isShuffle then
-                -- Solo Shuffle is treated as ONE segment for the entire
-                -- 6-round match: APM, uptime, damage/healing, etc. all
-                -- accumulate across rounds. Round transitions are not
-                -- separate segments; we just keep tracking through them.
-                --
-                -- Between rounds the game briefly drops you out of combat
-                -- (~15s countdown), and combat-drops mid-round happen too
-                -- (feign/vanish/shadowmeld/restealth). In both cases we
-                -- simply re-enter combat on the same tracker state.
-                --
-                -- Refresh the roster (teammates rotate between rounds)
-                -- and resume combat without resetting any counters.
-                shuffleRoundCounter = shuffleRoundCounter + 1
-                shuffleRoundHasData = true
-
-                RefreshRosterCache()
-                RegisterUnitFlagsPools()
-                RegisterPartyUnitEvents()
-                CacheAllRosterInfo()
-                for guid in pairs(rosterGUIDs) do Tracker.EnsurePlayer(guid) end
-
-                Tracker.SetCombatStart(now)
-                if PC.Polling and PC.Polling.Start then PC.Polling.Start() end
-
-                if debugMode then
-                    local gap = (shuffleLastRegenEnabledAt > 0)
-                        and (now - shuffleLastRegenEnabledAt) or 0
-                    print(string.format(
-                        "|cffFFD666PC Debug|r: Solo Shuffle round %d combat resumed (%.1fs gap) -- accumulating into single match segment",
-                        shuffleRoundCounter, gap))
+            -- In 12.0 the deterministic round-start signal is
+            -- PVP_MATCH_STATE_CHANGED → Enum.PvPMatchState.Engaged (the
+            -- moment the gate drops, regardless of whether all players
+            -- ready-checked early or the countdown ran to zero). We rely
+            -- on that for round timing.
+            --
+            -- PLAYER_REGEN_DISABLED in arena now has two purposes:
+            --   1. Fallback on clients that don't expose the state API.
+            --   2. Resuming after a mid-round combat-drop (feign / vanish
+            --      / shadowmeld / restealth). For (2), arenaRoundLive is
+            --      still true, BeginArenaRound is idempotent → no-op.
+            if not arenaRoundLive then
+                local stateOK = (C_PvP and C_PvP.GetActiveMatchState ~= nil)
+                if stateOK then
+                    -- State API present but Engaged hasn't fired yet:
+                    -- we're probably still in StartUp / Waiting and combat
+                    -- got bumped by a pre-pull spell. Skip; the state
+                    -- handler will start us correctly.
+                    if debugMode then
+                        print("|cffFFD666PC Debug|r: REGEN_DISABLED in arena pre-Engaged; deferring to state event")
+                    end
+                else
+                    BeginArenaRound(GetTime(), "regen-disabled-fallback")
                 end
-                return
             end
 
             if PC.Polling and PC.Polling.Start then PC.Polling.Start() end
@@ -741,6 +795,7 @@ local function OnEvent(self, event, ...)
                 shuffleRoundHasData = false
                 shuffleLastRegenEnabledAt = 0
                 arenaMatchSetupDone = false
+                arenaRoundLive = false
                 trashPullCounter = 0
             end
             -- Zone-based: we are in an arena instance for the whole match.
@@ -764,6 +819,7 @@ local function OnEvent(self, event, ...)
                 justEndedEncounter = true
                 inArenaMatch = false
                 arenaMatchSetupDone = false
+                arenaRoundLive = false
                 shuffleRoundCounter = 0
                 shuffleLastRegenEnabledAt = 0
             end
@@ -800,6 +856,7 @@ local function OnEvent(self, event, ...)
         shuffleRoundCounter = 0
         shuffleRoundHasData = false
         shuffleLastRegenEnabledAt = 0
+        arenaRoundLive = false
 
         local _, _, diffID = GetInstanceInfo()
         local isShuffle = (diffID == 231 or (C_PvP and C_PvP.IsSoloShuffle and C_PvP.IsSoloShuffle()))
@@ -814,7 +871,14 @@ local function OnEvent(self, event, ...)
         local members = Utils.ScanGroupRoster()
         for guid, _ in pairs(members) do Tracker.EnsurePlayer(guid) end
 
-        StartCombatTracking(GetTime(), false)
+        -- DO NOT call StartCombatTracking here. PVP_MATCH_ACTIVE fires on
+        -- lobby load, before the round gate drops. Starting the combat
+        -- timer now would include pre-game (talent picking, ready-up,
+        -- countdown) in APM/uptime denominators. Wait for the deterministic
+        -- PVP_MATCH_STATE_CHANGED → Engaged event below.
+        RefreshRosterCache()
+        RegisterUnitFlagsPools()
+        CacheAllRosterInfo()
 
         C_Timer.After(2.0, function()
             if not inArenaMatch then return end
@@ -836,6 +900,22 @@ local function OnEvent(self, event, ...)
     elseif event == "ARENA_OPPONENT_UPDATE" then
         if inArenaMatch then RefreshRosterCache() end
 
+    elseif event == "PVP_MATCH_STATE_CHANGED" then
+        -- The reliable round-live signal in 12.0. Fires regardless of
+        -- whether the round started via the ready-check shortcut or the
+        -- countdown ran out.
+        if not inArenaMatch then return end
+        if not (C_PvP and C_PvP.GetActiveMatchState and Enum and Enum.PvPMatchState) then
+            return
+        end
+        local state = C_PvP.GetActiveMatchState()
+        local Engaged = Enum.PvPMatchState.Engaged
+        if state == Engaged then
+            BeginArenaRound(GetTime(), "state-engaged")
+        elseif arenaRoundLive then
+            EndArenaRound(GetTime(), "state-" .. tostring(state))
+        end
+
     elseif event == "PVP_MATCH_COMPLETE" then
         -- PVP_MATCH_COMPLETE pulses between solo shuffle rounds. The real
         -- match end is detected via ZONE_CHANGED_NEW_AREA (leaving the arena
@@ -854,7 +934,8 @@ function Events.Init()
     eventFrame:SetScript("OnEvent", OnEvent)
 
     -- Player-self spell tracker fires through eventFrame; party units use
-    -- the per-unit pool registered below (RegisterUnitEvent is the only
+    -- the per-unit pool registered below (RegistPVP_MATCH_STATE_CHANGED")
+    pcall(eventFrame.RegisterEvent, eventFrame, "erUnitEvent is the only
     -- way to reliably get USCS/UNIT_POWER_UPDATE for party members).
     eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
     eventFrame:RegisterUnitEvent("UNIT_POWER_UPDATE", "player")

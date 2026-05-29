@@ -420,15 +420,29 @@ function MeterData.GetLiveMeterData()
 
     -- Out of combat: data is readable.  Build cache from API.
     local Tracker = PC.Tracker
-    local nameToRealGUID = {}
-    if Tracker and Tracker.GetAllPlayerData then
-        for guid, pd in pairs(Tracker.GetAllPlayerData()) do
-            if pd.name then
-                local shortName = pd.name:match("^(.+)-") or pd.name
-                nameToRealGUID[shortName] = guid
-                nameToRealGUID[pd.name] = guid
-            end
+    local snapshots = (Tracker and Tracker.GetAllPlayerData and Tracker.GetAllPlayerData()) or {}
+
+    -- Name -> GUID lookup uses the same (snap.name) shape that
+    -- MatchSourceToGUID expects, so we can reuse the shared matcher.
+    -- That matcher includes the class+name fuzzy fallback which is what
+    -- lets arena enemies match (their C_DamageMeter `src.guid` can be a
+    -- different secret string than `UnitGUID("arenaN")` we cached earlier,
+    -- so name + class is the reliable bridge).
+    local nameToGUID = {}
+    for guid, pd in pairs(snapshots) do
+        if pd.name then
+            local shortName = pd.name:match("^(.+)-") or pd.name
+            nameToGUID[shortName] = guid
+            nameToGUID[pd.name] = guid
         end
+    end
+
+    -- Build a snapshots-shaped table for the matcher: it needs `.name`
+    -- and `.class` for the class+name fuzzy path. Pulls straight from
+    -- the live tracker.
+    local matchSnapshots = {}
+    for guid, pd in pairs(snapshots) do
+        matchSnapshots[guid] = { name = pd.name, class = pd.class }
     end
 
     local queries = {
@@ -445,46 +459,7 @@ function MeterData.GetLiveMeterData()
             local sources = QueryMeterType(SESSION_CURRENT, q.type)
             if sources then
                 for _, src in ipairs(sources) do
-                    local realGUID = nil
-
-                    -- Primary: exact GUID match.
-                    -- src.guid can be a tainted "secret string" out of C_DamageMeter,
-                    -- which throws if you compare it directly.  Use pcall to safely
-                    -- probe equality / table lookup; on failure we fall through to
-                    -- the isLocal / name fallbacks below.
-                    if src.guid and Tracker and Tracker.GetAllPlayerData then
-                        local ok, isMatch = pcall(function()
-                            return src.guid ~= "" and Tracker.GetAllPlayerData()[src.guid] ~= nil
-                        end)
-                        if ok and isMatch then
-                            realGUID = src.guid
-                        end
-                    end
-
-                    -- Secondary: isLocalPlayer
-                    if not realGUID and src.isLocal then
-                        local myGUID = UnitGUID("player")
-                        if myGUID and Tracker and Tracker.GetAllPlayerData and Tracker.GetAllPlayerData()[myGUID] then
-                            realGUID = myGUID
-                        end
-                    end
-
-                    -- Tertiary: name match (also pcall-guarded — src.name can
-                    -- be a tainted secret string just like src.guid).
-                    if not realGUID and src.name then
-                        pcall(function()
-                            if src.name == "" then return end
-                            if nameToRealGUID[src.name] then
-                                realGUID = nameToRealGUID[src.name]
-                                return
-                            end
-                            local shortName = src.name:match("^(.+)-") or src.name
-                            if nameToRealGUID[shortName] then
-                                realGUID = nameToRealGUID[shortName]
-                            end
-                        end)
-                    end
-
+                    local realGUID = MatchSourceToGUID(src, matchSnapshots, nameToGUID)
                     if realGUID then
                         if not liveMeterCache[realGUID] then
                             liveMeterCache[realGUID] = {

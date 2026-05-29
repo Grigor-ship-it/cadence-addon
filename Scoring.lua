@@ -794,6 +794,15 @@ function Scoring.CalcCadenceLiveScore(snap, allPlayers, contentType, context)
     local hasMeterData = (snap.damageDone or 0) > 0 or (snap.healingDone or 0) > 0
 
     if not hasMeterData then
+        -- In arena (incl. Solo Shuffle) meter data is the WHOLE point of
+        -- the comparison — falling back to the engagement score here would
+        -- give a free 100 to every enemy whose meter row we couldn't match
+        -- (engagement = APM + uptime, both saturate at 100 for any active
+        -- PvPer). Return nil so the UI can render an explicit "no data"
+        -- state instead of misleading the user.
+        if contentType == "arena" then
+            return nil
+        end
         return snap.activityScore or 50
     end
 

@@ -119,7 +119,8 @@ function Utils.FormatAPM(apm)
 end
 
 function Utils.FormatScore(score)
-    if not score or score ~= score then return "0" end
+    if score == nil then return "\226\128\148" end  -- em-dash for "no data"
+    if score ~= score then return "0" end           -- NaN guard
     return string.format("%.0f", score)
 end
 
@@ -155,6 +156,11 @@ function Utils.GetClassColorHex(class)
 end
 
 function Utils.GetScoreColor(score)
+    -- nil = "no meter data" → muted grey so the row clearly reads as
+    -- "we couldn't measure this player" instead of a real value.
+    if score == nil then
+        return 0.55, 0.55, 0.55
+    end
     -- Green (good) → Yellow (warning) → Red (bad)
     if score >= 70 then
         return 0.2, 1.0, 0.2  -- green
