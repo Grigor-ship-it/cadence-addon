@@ -1,13 +1,13 @@
 -- ============================================================================
 -- Cadence Rewards Database — KR Region
--- Generated: 2026-05-30T06:54:00.437Z
--- Version: v202605300600
+-- Generated: 2026-05-31T07:11:01.255Z
+-- Version: v202605310600
 -- DO NOT EDIT — this file is auto-generated daily by the Cadence server.
 -- Keep your addon updated via CurseForge / WoWUp and this refreshes automatically.
 -- ============================================================================
 
 CADENCE_REWARDS_REGION = "kr"
-CADENCE_REWARDS_GENERATED = 1780124040
+CADENCE_REWARDS_GENERATED = 1780211461
 CADENCE_REWARDS_VERSION = 1
 
 CadenceRewardsDB_kr = {
