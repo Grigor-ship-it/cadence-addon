@@ -183,15 +183,20 @@ local function IsSafeString(s)
 end
 
 local function MatchSourceToGUID(src, snapshots, nameToGUID)
+    -- `src.guid` itself can be a secret string in 11.x for vehicles and
+    -- some pet variants (any comparison taints execution and aborts the
+    -- enclosing loop). Probe with IsSafeString before touching it.
+    local guidSafe = IsSafeString(src.guid)
+
     -- Primary: exact GUID match
-    if src.guid and src.guid ~= "" and snapshots[src.guid] then
+    if guidSafe and src.guid ~= "" and snapshots[src.guid] then
         return src.guid
     end
 
     -- Pets can never match a player snapshot, and their `name` field is a
     -- secret string in 11.x — touching it taints the addon and aborts
     -- enrichment for everyone. Bail out before any name comparison.
-    if src.guid and src.guid:sub(1, 4) == "Pet-" then
+    if guidSafe and src.guid:sub(1, 4) == "Pet-" then
         return nil
     end
 
