@@ -934,9 +934,10 @@ function Events.Init()
     eventFrame:SetScript("OnEvent", OnEvent)
 
     -- Player-self spell tracker fires through eventFrame; party units use
-    -- the per-unit pool registered below (RegistPVP_MATCH_STATE_CHANGED")
-    pcall(eventFrame.RegisterEvent, eventFrame, "erUnitEvent is the only
-    -- way to reliably get USCS/UNIT_POWER_UPDATE for party members).
+    -- the per-unit pool registered below (RegisterUnitEvent is the only
+    -- way to reliably get UNIT_SPELLCAST_SUCCEEDED / UNIT_POWER_UPDATE
+    -- for party members).
+    pcall(eventFrame.RegisterEvent, eventFrame, "PVP_MATCH_STATE_CHANGED")
     eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
     eventFrame:RegisterUnitEvent("UNIT_POWER_UPDATE", "player")
 
