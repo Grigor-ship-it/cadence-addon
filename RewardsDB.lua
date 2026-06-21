@@ -1,16 +1,16 @@
 -- ============================================================================
 -- Cadence Rewards Database — US Region
--- Generated: 2026-06-20T07:12:48.418Z
--- Version: v202606200600
+-- Generated: 2026-06-21T07:29:48.191Z
+-- Version: v202606210600
 -- DO NOT EDIT — this file is auto-generated daily by the Cadence server.
 -- Keep your addon updated via CurseForge / WoWUp and this refreshes automatically.
 -- ============================================================================
 
 CADENCE_REWARDS_REGION = "us"
-CADENCE_REWARDS_GENERATED = 1781939568
+CADENCE_REWARDS_GENERATED = 1782026988
 CADENCE_REWARDS_VERSION = 1
 
 CadenceRewardsDB_us = {
-["Vitalithry-Stormscale"]={s=86.6,c=2,n=7,u="2026-06-19"},
-["Womann-Thrall"]={s=77.6,c=2,n=5,u="2026-06-19"},
+["Vitalithry-Stormscale"]={s=87.9,c=2,n=8,u="2026-06-20"},
+["Womann-Thrall"]={s=77.6,c=2,n=5,u="2026-06-20"},
 }
