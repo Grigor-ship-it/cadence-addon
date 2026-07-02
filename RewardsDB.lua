@@ -1,19 +1,19 @@
 -- ============================================================================
 -- Cadence Rewards Database — US Region
--- Generated: 2026-07-01T07:20:46.126Z
--- Version: v202607010600
+-- Generated: 2026-07-02T07:00:26.650Z
+-- Version: v202607020600
 -- DO NOT EDIT — this file is auto-generated daily by the Cadence server.
 -- Keep your addon updated via CurseForge / WoWUp and this refreshes automatically.
 -- ============================================================================
 
 CADENCE_REWARDS_REGION = "us"
-CADENCE_REWARDS_GENERATED = 1782890446
+CADENCE_REWARDS_GENERATED = 1782975626
 CADENCE_REWARDS_VERSION = 1
 
 CadenceRewardsDB_us = {
-["Vitalithry-Stormscale"]={s=90.8,c=2,n=12,u="2026-06-30"},
-["Mcversatile-Stormscale"]={s=81.0,c=2,n=5,u="2026-06-30"},
-["Womann-Thrall"]={s=77.6,c=2,n=5,u="2026-06-30"},
-["Paladín-Stormscale"]={s=75.4,c=2,n=6,u="2026-06-30"},
-["Dunhambones-Stormscale"]={s=70.0,c=2,n=5,u="2026-06-30"},
+["Vitalithry-Stormscale"]={s=90.8,c=2,n=12,u="2026-07-01"},
+["Mcversatile-Stormscale"]={s=81.0,c=2,n=5,u="2026-07-01"},
+["Womann-Thrall"]={s=77.6,c=2,n=5,u="2026-07-01"},
+["Paladín-Stormscale"]={s=75.4,c=2,n=6,u="2026-07-01"},
+["Dunhambones-Stormscale"]={s=70.0,c=2,n=5,u="2026-07-01"},
 }
