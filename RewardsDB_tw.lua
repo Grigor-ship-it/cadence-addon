@@ -1,13 +1,13 @@
 -- ============================================================================
 -- Cadence Rewards Database — TW Region
--- Generated: 2026-07-25T06:41:36.344Z
--- Version: v202607250600
+-- Generated: 2026-07-26T06:49:51.842Z
+-- Version: v202607260600
 -- DO NOT EDIT — this file is auto-generated daily by the Cadence server.
 -- Keep your addon updated via CurseForge / WoWUp and this refreshes automatically.
 -- ============================================================================
 
 CADENCE_REWARDS_REGION = "tw"
-CADENCE_REWARDS_GENERATED = 1784961696
+CADENCE_REWARDS_GENERATED = 1785048591
 CADENCE_REWARDS_VERSION = 1
 
 CadenceRewardsDB_tw = {
