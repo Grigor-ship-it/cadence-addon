@@ -1,22 +1,22 @@
 -- ============================================================================
 -- Cadence Rewards Database — US Region
--- Generated: 2026-11-01T06:00:45.953Z
--- Version: v202611010600
+-- Generated: 2026-11-02T06:00:57.299Z
+-- Version: v202611020600
 -- DO NOT EDIT — this file is auto-generated daily by the Cadence server.
 -- Keep your addon updated via CurseForge / WoWUp and this refreshes automatically.
 -- ============================================================================
 
 CADENCE_REWARDS_REGION = "us"
-CADENCE_REWARDS_GENERATED = 1793512845
+CADENCE_REWARDS_GENERATED = 1793599257
 CADENCE_REWARDS_VERSION = 1
 
 CadenceRewardsDB_us = {
-["Lhumierre-Emerald Dream"]={s=91.9,c=2,n=16,u="2026-11-01"},
-["Vitalithry-Stormscale"]={s=91.7,c=2,n=14,u="2026-11-01"},
-["Ceresine-Emerald Dream"]={s=88.0,c=2,n=7,u="2026-11-01"},
-["Thistles-Emerald Dream"]={s=83.4,c=2,n=6,u="2026-11-01"},
-["Mcversatile-Stormscale"]={s=81.0,c=2,n=5,u="2026-11-01"},
-["Womann-Thrall"]={s=77.6,c=2,n=5,u="2026-11-01"},
-["Paladín-Stormscale"]={s=75.4,c=2,n=6,u="2026-11-01"},
-["Dunhambones-Stormscale"]={s=70.0,c=2,n=5,u="2026-11-01"},
+["Lhumierre-Emerald Dream"]={s=91.9,c=2,n=16,u="2026-11-02"},
+["Vitalithry-Stormscale"]={s=91.7,c=2,n=14,u="2026-11-02"},
+["Ceresine-Emerald Dream"]={s=88.0,c=2,n=7,u="2026-11-02"},
+["Thistles-Emerald Dream"]={s=83.4,c=2,n=6,u="2026-11-02"},
+["Mcversatile-Stormscale"]={s=81.0,c=2,n=5,u="2026-11-02"},
+["Womann-Thrall"]={s=77.6,c=2,n=5,u="2026-11-02"},
+["Paladín-Stormscale"]={s=75.4,c=2,n=6,u="2026-11-02"},
+["Dunhambones-Stormscale"]={s=70.0,c=2,n=5,u="2026-11-02"},
 }
