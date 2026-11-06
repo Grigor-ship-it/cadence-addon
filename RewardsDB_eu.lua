@@ -1,20 +1,20 @@
 -- ============================================================================
 -- Cadence Rewards Database — EU Region
--- Generated: 2026-11-05T06:00:56.532Z
--- Version: v202611050600
+-- Generated: 2026-11-06T06:01:11.759Z
+-- Version: v202611060600
 -- DO NOT EDIT — this file is auto-generated daily by the Cadence server.
 -- Keep your addon updated via CurseForge / WoWUp and this refreshes automatically.
 -- ============================================================================
 
 CADENCE_REWARDS_REGION = "eu"
-CADENCE_REWARDS_GENERATED = 1793858456
+CADENCE_REWARDS_GENERATED = 1793944871
 CADENCE_REWARDS_VERSION = 1
 
 CadenceRewardsDB_eu = {
-["Faramirg-Antonidas"]={s=96.4,c=3,n=24,u="2026-11-05"},
-["Ventrix-Kult der Verdammten"]={s=96.0,c=3,n=23,u="2026-11-05"},
-["Faramip-Antonidas"]={s=95.1,c=3,n=32,u="2026-11-05"},
-["Tamako-Kult der Verdammten"]={s=95.1,c=2,n=17,u="2026-11-05"},
-["Ysondrê-Kult der Verdammten"]={s=88.5,c=2,n=11,u="2026-11-05"},
-["Frior-Kult der Verdammten"]={s=86.6,c=3,n=26,u="2026-11-05"},
+["Faramirg-Antonidas"]={s=96.4,c=3,n=24,u="2026-11-06"},
+["Ventrix-Kult der Verdammten"]={s=96.0,c=3,n=23,u="2026-11-06"},
+["Faramip-Antonidas"]={s=95.1,c=3,n=32,u="2026-11-06"},
+["Tamako-Kult der Verdammten"]={s=95.1,c=2,n=17,u="2026-11-06"},
+["Ysondrê-Kult der Verdammten"]={s=88.5,c=2,n=11,u="2026-11-06"},
+["Frior-Kult der Verdammten"]={s=86.6,c=3,n=26,u="2026-11-06"},
 }
